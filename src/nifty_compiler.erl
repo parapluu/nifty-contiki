@@ -1,6 +1,7 @@
 -module(nifty_compiler).
 -export([render/4,
-	 compile/3]).
+	 compile/3,
+	 rebar_commands/1]).
 
 -type reason() :: atom().
 -type options() :: proplists:proplist().
@@ -107,15 +108,16 @@ fwrite_render(Path, ModuleName, Dir, FileName, Template) ->
     file:write_file(filename:join([Path, ModuleName, Dir, FileName]), [Template]).
 
 compile_module(ModuleName) ->
-    {ok, Path} = file:get_cwd(),
-    ok = file:set_cwd(filename:join([Path, ModuleName])),
-    try rebar_commands(["compile"]) of
-	_ -> file:set_cwd(Path)
-    catch
-	throw:rebar_abort ->
-	    ok = file:set_cwd(Path),
-	    fail
-    end.
+    ok.
+    %% {ok, Path} = file:get_cwd(),
+    %% ok = file:set_cwd(filename:join([Path, ModuleName])),
+    %% try rebar_commands(["compile"]) of
+    %% 	_ -> file:set_cwd(Path)
+    %% catch
+    %% 	throw:rebar_abort ->
+    %% 	    ok = file:set_cwd(Path),
+    %% 	    fail
+    %% end.
 
 rebar_commands(RawArgs) ->
     Args = nifty_rebar:parse_args(RawArgs),
