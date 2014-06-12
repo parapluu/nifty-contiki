@@ -1,11 +1,10 @@
 -module(nifty_compiler).
 -export([render/4,
-	 compile/3,
-	 rebar_commands/1]).
+	 compile/3]).
 
 -type reason() :: atom().
 -type options() :: proplists:proplist().
--type renderout() :: {iolist(), iolist(), iolist(), iolist(), iolist(), iolist()}.
+-type renderout() :: iolist().
 -type modulename() :: string().
 
 %% @doc Renders an <code>InterfaceFile</code> into a Erlang module containing of <code>ModuleName</code>.erl
@@ -38,13 +37,8 @@ render(InterfaceFile, ModuleName, CFlags, Options) ->
 			  {"types", Types},
 			  {"symbols", Symbols},
 			  {"none", none}],
-	    {ok, COutput} = nifty_c_template:render(RenderVars),
-	    {ok, ErlOutput} = nifty_erl_template:render(RenderVars),
-	    {ok, SaveErlOutput} = nifty_save_erl_template:render(RenderVars),
-	    {ok, HrlOutput} = nifty_hrl_template:render(RenderVars),
-	    {ok, AppOutput} = nifty_app_template:render(RenderVars),
-	    {ok, ConfigOutput} = nifty_config_template:render(RenderVars),
-	    {ErlOutput, SaveErlOutput, HrlOutput, COutput, AppOutput, ConfigOutput}
+	    {ok, COutput} = nifty_contiki_template:render(RenderVars),
+	    COutput
     end.
 
 filter_functions(InterfaceFile, Functions, FuncLoc) ->
@@ -76,54 +70,11 @@ store_files(_, ModuleName, _, RenderOutput, Path) ->
 	     {error,eexist} -> ok;
 	     _ -> fail
 	 end,
-    ok = case file:make_dir(filename:join([Path,ModuleName, "src"])) of
-	     ok -> ok;
-	     {error,eexist} -> ok;
-	     _ -> fail
-	 end,
-    ok = case file:make_dir(filename:join([Path,ModuleName, "include"])) of
-	     ok -> ok;
-	     {error,eexist} -> ok;
-	     _ -> fail
-	 end,
-    ok = case file:make_dir(filename:join([Path,ModuleName, "c_src"])) of
-	     ok -> ok;
-	     {error,eexist} -> ok;
-	     _ -> fail
-	 end,
-    ok = case file:make_dir(filename:join([Path,ModuleName, "ebin"])) of
-	     ok -> ok;
-	     {error,eexist} -> ok;
-	     _ -> fail
-	 end,
-    {ErlOutput, SaveErlOutput, HrlOutput, COutput, AppOutput, ConfigOutput} = RenderOutput,
-    ok = fwrite_render(Path, ModuleName, "src", ModuleName++".erl", ErlOutput),
-    ok = fwrite_render(Path, ModuleName, "src", ModuleName++"_remote"++".erl", SaveErlOutput),
-    ok = fwrite_render(Path, ModuleName, "include", ModuleName++".hrl", HrlOutput),
-    ok = fwrite_render(Path, ModuleName, "c_src", ModuleName++"_nif.c", COutput),
-    ok = fwrite_render(Path, ModuleName, "ebin", ModuleName++".app", AppOutput),
-    ok = fwrite_render(Path, ModuleName, ".", "rebar.config", ConfigOutput).
+    ContikiOutput = RenderOutput,
+    ok = fwrite_render(Path, ModuleName, ".", "contiki_app.c", ContikiOutput).
 
 fwrite_render(Path, ModuleName, Dir, FileName, Template) ->
     file:write_file(filename:join([Path, ModuleName, Dir, FileName]), [Template]).
-
-compile_module(ModuleName) ->
-    ok.
-    %% {ok, Path} = file:get_cwd(),
-    %% ok = file:set_cwd(filename:join([Path, ModuleName])),
-    %% try rebar_commands(["compile"]) of
-    %% 	_ -> file:set_cwd(Path)
-    %% catch
-    %% 	throw:rebar_abort ->
-    %% 	    ok = file:set_cwd(Path),
-    %% 	    fail
-    %% end.
-
-rebar_commands(RawArgs) ->
-    Args = nifty_rebar:parse_args(RawArgs),
-    BaseConfig = nifty_rebar:init_config(Args),
-    {BaseConfig1, Cmds} = nifty_rebar:save_options(BaseConfig, Args),
-    nifty_rebar:run(BaseConfig1, Cmds).
 
 %% @doc Generates a NIF module out of a C header file and compiles it, 
 %% generating wrapper functions for all functions present in the header file. 
@@ -143,15 +94,7 @@ compile(InterfaceFile, Module, Options) ->
 	{error, E} -> 
 	    {error, E};
 	Output ->
-	    ok = store_files(InterfaceFile, ModuleName, UCO, Output),
-	    case compile_module(ModuleName) of
-		ok ->
-		    ModulePath = filename:absname(filename:join([ModuleName, "ebin"])),
-		    true = code:add_patha(ModulePath),
-		    ok;
-		fail ->
-		    {error, compile}
-	    end
+	    ok = store_files(InterfaceFile, ModuleName, UCO, Output)
     end.
 
 build_env(ModuleName, Options) ->
