@@ -1,5 +1,3 @@
-static char* BUFFER= "Return Value";
-
 /* create call functions */
 
 /*
@@ -12,7 +10,7 @@ static char* BUFFER= "Return Value";
 */
 
 
-static char* nifty_buffer[{{maxbuf}}];
+static char nifty_buffer[{{maxbuf}}];
 
 {% with fn=symbols|fetch_keys %}
 	{% for name in fn %}
@@ -98,7 +96,7 @@ niftycall_{{name}}(char* args) {
     {% for argument in arguments %}
       {% if argument|is_return %}
         {% with raw_type=argument|getNth:2 phase="to_erl" N=argument|getNth:2 %}
-          {% with type=raw_type|resolved:types carg="carg_"|add:N left=maxbuf buffer="nifty_buffer" %}
+          {% with type=raw_type|resolved:types carg="c_retval" left=maxbuf buffer="nifty_buffer" %}
             {% include "lib/builtin_type.tpl" %}
           {% endwith %}
         {% endwith %}
@@ -110,7 +108,7 @@ niftycall_{{name}}(char* args) {
     {% for argument in arguments %}
       {% if argument|is_argument %}
         {% with raw_type=argument|getNth:3 phase="cleanup" N=argument|getNth:2 %}
-          {% with type=raw_type|resolved:types carg="c_retval" %}
+          {% with type=raw_type|resolved:types carg="carg_"|add:N %}
             {% include "lib/builtin_type.tpl" %}
           {% endwith %}
         {% endwith %}
@@ -126,7 +124,6 @@ niftycall_{{name}}(char* args) {
 void
 process_input(char* input){
   unsigned function;
-  unsigned outlength;
   int retval;
   char* arguments;
   function = strtol(input, &arguments, 10);

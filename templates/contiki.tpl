@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "{{header|absname}}"
+
 PROCESS(echo_serial, "Arbitrary Documentation String");
 AUTOSTART_PROCESSES(&echo_serial);
 

@@ -3,9 +3,9 @@
 
   {% if argument|is_argument %}
     {% if typedef|getNth:2=="unsigned" %}
-      unsigned long long {{carg}};
+      unsigned long {{carg}};
     {% else %}
-      long long {{carg}};
+      long {{carg}};
     {% endif %}
   {% endif %}
 
@@ -36,9 +36,9 @@
 {################################################################}
 {% if phase=="to_erl"%}
   {% if typedef|getNth:2=="unsigned" %}
-    forward = snprintf({{buffer}}, {{left}}, "%ulld", (unsigned long long){{carg}});
+    forward = snprintf({{buffer}}, {{left}}, "%lu", (unsigned long){{carg}});
   {% else %}
-    forward = snprintf({{buffer}}, {{left}}, "%lld", (long long){{carg}});
+    forward = snprintf({{buffer}}, {{left}}, "%ld", (long){{carg}});
   {% endif %}
 {% endif %}
 
