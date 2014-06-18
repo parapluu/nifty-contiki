@@ -12,38 +12,71 @@ connect(Host, Port) ->
 
 call(Conn, Func, Args) ->
     Format = string:copies("~p ", length(Args)) ++ "~p~n",
-    Msg = io:fwrite(Format, [Func|Args]),
+    Msg = format(Format, [Func|Args]),
     gen_tcp:send(Conn, Msg).
 
 msg(Conn, Msg) ->
-    gen_tcp:send(Conn, io:fwrite("~p~n", [Msg])).
+    gen_tcp:send(Conn, format("~s~n", [Msg])).
 
 disconnect(Conn) ->
     gen_tcp:close(Conn).
 
 start(CoojaPath, Simfile) ->
-    Cmd = "java -jar ~p -nogui=~p",
-    AbsSimPath = filename:absname(Simfile),
-    _ = spawn(fun () -> command_fun(CoojaPath, 
-				    io:fwrite(Cmd, ["cooja.jar", AbsSimPath]), 
-				    self()) 
-	      end),
-    ok.
-
-state() ->
-    receive
-	0 -> success;
-	_ -> fail
-    after
-	0 -> running
+    case lists:member(cooja_server, registered()) of
+	true -> 
+	    fail;
+	false ->
+	    CmdTmpl = "java -jar ~s -nogui=~s",
+	    AbsSimPath = filename:absname(Simfile),
+	    Cmd = format(CmdTmpl, ["cooja.jar", AbsSimPath]),
+	    P = spawn(fun () -> command_fun(CoojaPath, Cmd) 
+		      end),
+	    true = register(cooja_server, P),
+	    ok
     end.
 
-command_fun(CoojaPath, Cmd, S) ->
+state() ->
+    case lists:member(cooja_server, registered()) of
+	true ->
+	    P = whereis(cooja_server),
+	    P ! {finnished, self()},
+	    receive
+		ok ->
+		    P ! {get, self()},
+		    R = receive
+			    0 -> ok;
+			    _ -> fail
+			end,
+		    P ! stop,
+		    R
+	    after
+		100 -> running
+	    end;
+	false->
+	    not_running
+    end.
+
+command_fun(CoojaPath, Cmd) ->
     {ok, OldPath} = file:get_cwd(),
-    ok = file:set_cwd(CoojaPath),
-    {R, _} = command(Cmd),
+    ok = file:set_cwd(filename:join([CoojaPath, "dist"])),
+    {R, O} = command(Cmd),
+    %% io:format("~s~n", [lists:flatten(O)]),
     ok = file:set_cwd(OldPath),
-    S ! R.
+    command_finalize(R).
+
+command_finalize(R) ->
+    receive
+	{finnished, S} ->
+	    S ! ok,
+	    command_finalize(R);
+	{get, S} ->
+	    S ! R;
+	stop ->
+	    ok
+    end.
+
+format(Format, Args) ->
+    lists:flatten(io_lib:format(Format, Args)).
 
 %% Taken form EUnit
 %% ---------------------------------------------------------------------
