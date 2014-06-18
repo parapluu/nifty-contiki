@@ -9,6 +9,7 @@
 		{modules, [
 			nifty, 
 			nifty_clangparse,
+			nifty_cooja,
 			nifty_filters,
 			nifty_tags,
 			nifty_rebar,
