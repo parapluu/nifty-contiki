@@ -29,7 +29,7 @@ start(CoojaPath, Simfile) ->
 	    CmdTmpl = "java -jar ~s -nogui=~s",
 	    AbsSimPath = filename:absname(Simfile),
 	    Cmd = format(CmdTmpl, ["cooja.jar", AbsSimPath]),
-	    P = spawn(fun () -> command_fun(CoojaPath, Cmd) 
+	    P = spawn(fun () -> start_command(CoojaPath, Cmd) 
 		      end),
 	    true = register(cooja_server, P),
 	    ok
@@ -39,41 +39,46 @@ state() ->
     case lists:member(cooja_server, registered()) of
 	true ->
 	    P = whereis(cooja_server),
-	    P ! {finnished, self()},
+	    P ! {state, self()},
 	    receive
-		ok ->
-		    P ! {get, self()},
-		    R = receive
-			    0 -> ok;
-			    _ -> fail
-			end,
-		    P ! stop,
-		    R
-	    after
-		100 -> running
+		{finished, {0, _}} -> ok;
+		{finished, {R, O}} -> {error, {R, O}};
+		running -> running
 	    end;
 	false->
 	    not_running
     end.
 
+start_command(CoojaPath, Cmd) ->
+    P = spawn(fun () ->command_fun(CoojaPath, Cmd) end),
+    P ! {handler, self()},
+    handle_requests().
+
+handle_requests() ->
+    receive
+	{result, {R, O}} ->
+	    receive
+		{state, P} ->
+		    P ! {finished, {R, O}}
+	    end;
+	{state, P} ->
+	    P ! running,
+	    handle_requests()
+    end.
+
 command_fun(CoojaPath, Cmd) ->
+    S = receive
+	    {handler, P} -> P
+	end,
     {ok, OldPath} = file:get_cwd(),
     ok = file:set_cwd(filename:join([CoojaPath, "dist"])),
     {R, O} = command(Cmd),
     %% io:format("~s~n", [lists:flatten(O)]),
     ok = file:set_cwd(OldPath),
-    command_finalize(R).
+    S ! {result, {R, O}}.
 
-command_finalize(R) ->
-    receive
-	{finnished, S} ->
-	    S ! ok,
-	    command_finalize(R);
-	{get, S} ->
-	    S ! R;
-	stop ->
-	    ok
-    end.
+
+
 
 format(Format, Args) ->
     lists:flatten(io_lib:format(Format, Args)).
