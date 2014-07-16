@@ -1,38 +1,59 @@
 -module(nifty_cooja).
 -export([start/2,
 	 state/0,
-	 connect/2 ,
-	 disconnect/1,
-	 call/3,
-	 msg/2]).
+	 start_simulation/1,
+	 stop_simulation/1,
+	 is_running/1,
+	 set_speed_limit/2,
+	 simulation_time/1,
+	 simulation_time_ms/1,
+	 simulation_step_ms/1,
+	 motes/1,
+	 mote_write/3,
+	 mote_listen/2,
+	 mote_unlisten/2,
+	 mote_read/2,
+	 mote_read_s/2,
+	 msg_wait/2
+	]).
 
-connect(Host, Port) ->
-    {ok, Conn} = gen_tcp:connect(Host, Port, [{active, false}]),
-    Conn.
-
-call(Conn, Func, Args) ->
-    Format = string:copies("~p ", length(Args)) ++ "~p~n",
-    Msg = format(Format, [Func|Args]),
-    gen_tcp:send(Conn, Msg).
-
-msg(Conn, Msg) ->
-    gen_tcp:send(Conn, format("~s~n", [Msg])).
-
-disconnect(Conn) ->
-    gen_tcp:close(Conn).
-
-start(CoojaPath, Simfile) ->
-    case lists:member(cooja_server, registered()) of
-	true -> 
+start_node() ->
+    [] = os:cmd("epmd -daemon"),
+    case net_kernel:start([cooja_master, shortnames]) of
+	{ok, _} ->
+	    ok;
+	{error, {already_started, _}} ->
+	    ok
+    end,
+    case lists:member(cooja_master, registered()) of
+	true ->
 	    fail;
 	false ->
-	    CmdTmpl = "java -jar ~s -nogui=~s",
-	    AbsSimPath = filename:absname(Simfile),
-	    Cmd = format(CmdTmpl, ["cooja.jar", AbsSimPath]),
-	    P = spawn(fun () -> start_command(CoojaPath, Cmd) 
-		      end),
-	    true = register(cooja_server, P),
+	    register(cooja_master, self()),
 	    ok
+    end.
+
+start(CoojaPath, Simfile) ->
+    case start_node() of
+	ok ->
+	    case lists:member(cooja_server, registered()) of
+		true -> 
+		    fail;
+		false ->
+		    CmdTmpl = "java -jar ~s -nogui=~s",
+		    AbsSimPath = filename:absname(Simfile),
+		    Cmd = format(CmdTmpl, ["cooja.jar", AbsSimPath]),
+		    P = spawn(fun () -> start_command(CoojaPath, Cmd) 
+			      end),
+		    true = register(cooja_server, P),
+		    ok
+	    end,
+	    receive
+	    	{pid, Pid} ->
+	    	    Pid
+	    end;
+	fail ->
+	    fail
     end.
 
 state() ->
@@ -76,9 +97,6 @@ command_fun(CoojaPath, Cmd) ->
     %% io:format("~s~n", [lists:flatten(O)]),
     ok = file:set_cwd(OldPath),
     S ! {result, {R, O}}.
-
-
-
 
 format(Format, Args) ->
     lists:flatten(io_lib:format(Format, Args)).
@@ -128,3 +146,90 @@ normalize([C | Cs]) ->
     [C | normalize(Cs)];
 normalize([]) ->
     [].
+
+%% ---------------------------------------------------------------------
+%% Commands
+
+start_simulation(Handler) ->
+    Handler ! {self(), start_simulation},
+    receive
+	ok -> ok
+    end.
+
+stop_simulation(Handler) ->
+    Handler ! {self(), stop_simulation},
+    receive
+	ok -> ok
+    end.
+
+set_speed_limit(Handler, SpeedLimit) ->
+    Handler ! {self(), set_speed_limit, {SpeedLimit}},
+    receive
+	ok -> ok
+    end.
+
+is_running(Handler) ->
+    Handler ! {self(), is_running},
+    receive
+	State -> State
+    end.
+
+simulation_time(Handler) ->
+    Handler ! {self(), simulation_time},
+    receive
+	Time -> Time
+    end.
+
+simulation_time_ms(Handler) ->
+    Handler ! {self(), simulation_time_ms},
+    receive
+	Time -> Time
+    end.
+
+simulation_step_ms(Handler) ->
+    Handler ! {self(), simulation_step_ms},
+    receive
+	Rsp -> Rsp
+    end.
+
+motes(Handler) ->
+    Handler ! {self(), motes},
+    receive
+	Motes -> Motes
+    end.
+
+mote_write(Handler, Mote, Data) ->
+    Handler ! {self(), mote_write, {Mote, Data}},
+    receive
+	ok -> ok
+    end.
+
+mote_listen(Handler, Mote) ->
+    Handler ! {self(), mote_listen, {Mote}},
+    receive
+	ok -> ok
+    end.
+
+mote_unlisten(Handler, Mote) ->
+    Handler ! {self(), mote_unliste, {Mote}},
+    receive
+	ok -> ok
+    end.
+
+mote_read(Handler, Mote) ->
+    Handler ! {self(), mote_read, {Mote}},
+    receive
+	Data -> Data
+    end.
+
+mote_read_s(Handler, Mote) ->
+    Handler ! {self(), mote_read_s, {Mote}},
+    receive
+	Data -> Data
+    end.
+
+msg_wait(Handler, Msg) ->
+    Handler ! {self(), msg_wait, {Msg}},
+    receive
+	ok -> ok
+    end.
