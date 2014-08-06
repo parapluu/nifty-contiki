@@ -123,12 +123,23 @@ niftycall_{{name}}(char* args) {
 
 void
 process_input(char* input){
-  unsigned function;
+  long function;
   int retval;
   char* arguments;
   function = strtol(input, &arguments, 10);
+  arguments++;
 {% with fn=symbols|fetch_keys %}
   switch (function) {
+  case -0x01:
+    write_mem(arguments);
+    break;
+  case -0x02:
+    allocate_mem(arguments);
+    break;
+  case -0x03:
+    read_mem(arguments);
+    break;
+  /* generated functions */
   {% for name in fn %}
   case {{forloop.counter0}}:
     retval = niftycall_{{name}}(arguments);

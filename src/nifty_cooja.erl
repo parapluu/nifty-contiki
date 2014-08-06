@@ -1,6 +1,8 @@
 -module(nifty_cooja).
 -export([start/2,
+	 start/3,
 	 state/0,
+	 quit_cooja/1,
 	 start_simulation/1,
 	 stop_simulation/1,
 	 is_running/1,
@@ -34,6 +36,9 @@ start_node() ->
     end.
 
 start(CoojaPath, Simfile) ->
+    start(CoojaPath, Simfile, false).
+
+start(CoojaPath, Simfile, Debug) ->
     case start_node() of
 	ok ->
 	    case lists:member(cooja_server, registered()) of
@@ -43,7 +48,7 @@ start(CoojaPath, Simfile) ->
 		    CmdTmpl = "java -jar ~s -nogui=~s",
 		    AbsSimPath = filename:absname(Simfile),
 		    Cmd = format(CmdTmpl, ["cooja.jar", AbsSimPath]),
-		    P = spawn(fun () -> start_command(CoojaPath, Cmd) 
+		    P = spawn(fun () -> start_command(CoojaPath, Cmd, Debug) 
 			      end),
 		    true = register(cooja_server, P),
 		    ok
@@ -70,8 +75,8 @@ state() ->
 	    not_running
     end.
 
-start_command(CoojaPath, Cmd) ->
-    P = spawn(fun () ->command_fun(CoojaPath, Cmd) end),
+start_command(CoojaPath, Cmd, Debug) ->
+    P = spawn(fun () ->command_fun(CoojaPath, Cmd, Debug) end),
     P ! {handler, self()},
     handle_requests().
 
@@ -87,15 +92,19 @@ handle_requests() ->
 	    handle_requests()
     end.
 
-command_fun(CoojaPath, Cmd) ->
+command_fun(CoojaPath, Cmd, PrintOutput) ->
     S = receive
 	    {handler, P} -> P
 	end,
     {ok, OldPath} = file:get_cwd(),
     ok = file:set_cwd(filename:join([CoojaPath, "dist"])),
     {R, O} = command(Cmd),
-    %% io:format("~s~n", [lists:flatten(O)]),
+    ok = case PrintOutput of
+	     true -> io:format("~s~n", [lists:flatten(O)]);
+	     false -> ok
+	 end,
     ok = file:set_cwd(OldPath),
+    unregister(cooja_master),
     S ! {result, {R, O}}.
 
 format(Format, Args) ->
@@ -149,6 +158,12 @@ normalize([]) ->
 
 %% ---------------------------------------------------------------------
 %% Commands
+
+quit_cooja(Handler) ->
+    Handler ! {self(), quit_cooja},
+    receive
+	ok -> ok
+    end.    
 
 start_simulation(Handler) ->
     Handler ! {self(), start_simulation},

@@ -10,10 +10,10 @@
 PROCESS(echo_serial, "Arbitrary Documentation String");
 AUTOSTART_PROCESSES(&echo_serial);
 
-/* incude "nifty_lib.tpl"
- * 	+ provide functions for memory allocation/writing/reading
+/*
  * 	+ provide platform specific information (size of types)
  */
+{% include "nifty_lib.tpl" %}
 
 
 /* include "structures.tpl"
@@ -25,7 +25,6 @@ AUTOSTART_PROCESSES(&echo_serial);
 PROCESS_THREAD(echo_serial, ev, data)
 {
   PROCESS_BEGIN();
-  printf("Here we go\n");
   for (;;) {
     PROCESS_WAIT_EVENT_UNTIL(ev == serial_line_event_message && data != NULL);
     process_input((char*)data);
