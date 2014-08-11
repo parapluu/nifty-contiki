@@ -68,3 +68,21 @@ read_mem(char* stream) {
   }
   printf("\n");
 }
+
+static void
+nifty_sizeof(char* stream) {
+  char* typename = stream;
+  {% with type_keys=types|fetch_keys %}
+	{% for type in type_keys %}
+		{% with kind=types|fetch:type|getNth:1 %}
+			{% if kind=="base" or kind=="userdef" or kind=="typedef" %}
+  if (!(strcmp((const char*)typename, "{{type}}"))) {
+    printf("%ld\n", sizeof({{type|discard_restrict}}));
+    return;
+  }
+			{% endif %}
+		{% endwith%}
+	{% endfor %}
+  {% endwith %}
+  printf("undef\n");
+}

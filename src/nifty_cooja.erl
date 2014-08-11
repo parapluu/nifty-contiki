@@ -1,8 +1,11 @@
 -module(nifty_cooja).
--export([start/2,
+-export([%% cooja
+	 start/2,
 	 start/3,
 	 state/0,
+	 exit/0,
 	 quit_cooja/1,
+	 %% simulation
 	 start_simulation/1,
 	 stop_simulation/1,
 	 is_running/1,
@@ -10,13 +13,23 @@
 	 simulation_time/1,
 	 simulation_time_ms/1,
 	 simulation_step_ms/1,
+	 %% motes
 	 motes/1,
 	 mote_write/3,
 	 mote_listen/2,
 	 mote_unlisten/2,
 	 mote_read/2,
 	 mote_read_s/2,
-	 msg_wait/2
+	 msg_wait/2,
+	 %% nifty interface
+	 alloc/3,
+	 alloc/4,
+	 write/3,
+	 write/4,
+	 read/4,
+	 %% higher level
+	 wait_for_result/2,
+	 wait_for_result/3
 	]).
 
 start_node() ->
@@ -51,14 +64,33 @@ start(CoojaPath, Simfile, Debug) ->
 		    P = spawn(fun () -> start_command(CoojaPath, Cmd, Debug) 
 			      end),
 		    true = register(cooja_server, P),
-		    ok
-	    end,
-	    receive
-	    	{pid, Pid} ->
-	    	    Pid
+		    receive
+			{pid, Pid} ->
+			    P ! {handler, Pid},
+			    Pid
+		    end
 	    end;
 	fail ->
 	    fail
+    end.
+
+
+wait_for_cooja() ->
+    case state() of
+	{running, _} ->
+	    timer:sleep(100),
+	    wait_for_cooja();
+	Exit ->
+	    Exit
+    end.
+
+exit() ->
+    case state() of
+	{running, Handler} ->
+	    ok = quit_cooja(Handler),
+	    wait_for_cooja();
+	E ->
+	    E
     end.
 
 state() ->
@@ -69,7 +101,7 @@ state() ->
 	    receive
 		{finished, {0, _}} -> ok;
 		{finished, {R, O}} -> {error, {R, O}};
-		running -> running
+		{running, Handler} -> {running, Handler}
 	    end;
 	false->
 	    not_running
@@ -78,9 +110,12 @@ state() ->
 start_command(CoojaPath, Cmd, Debug) ->
     P = spawn(fun () ->command_fun(CoojaPath, Cmd, Debug) end),
     P ! {handler, self()},
-    handle_requests().
+    Handler = receive
+		  {handler, H} -> H
+	      end,
+    handle_requests(Handler).
 
-handle_requests() ->
+handle_requests(Handler) ->
     receive
 	{result, {R, O}} ->
 	    receive
@@ -88,8 +123,8 @@ handle_requests() ->
 		    P ! {finished, {R, O}}
 	    end;
 	{state, P} ->
-	    P ! running,
-	    handle_requests()
+	    P ! {running, Handler},
+	    handle_requests(Handler)
     end.
 
 command_fun(CoojaPath, Cmd, PrintOutput) ->
@@ -104,7 +139,12 @@ command_fun(CoojaPath, Cmd, PrintOutput) ->
 	     false -> ok
 	 end,
     ok = file:set_cwd(OldPath),
-    unregister(cooja_master),
+    true = case lists:member(cooja_master, registered()) of
+	       true ->
+		   unregister(cooja_master);
+	       _ ->
+		   true
+	   end,
     S ! {result, {R, O}}.
 
 format(Format, Args) ->
@@ -248,3 +288,126 @@ msg_wait(Handler, Msg) ->
     receive
 	ok -> ok
     end.
+
+
+%% nifty interface
+wait_for_result(Handler, Mote) ->
+    wait_for_result(Handler, Mote, 1000).
+
+wait_for_result(Handler, Mote, T) ->
+    wait_for_result(Handler, Mote, T, "\n", "").
+
+wait_for_result(_,_,-1,_,_) -> false;
+wait_for_result(Handler, Mote, T, Msg, Acc) ->
+    case state() of
+	{running, _} ->
+	    S = mote_read(Handler, Mote),
+	    NS = Acc++S,
+	    case string:str(NS, Msg) of
+		0 ->
+		    ok = simulation_step_ms(Handler),
+		    wait_for_result(Handler, Mote, T-1, Msg, NS);
+		_ ->
+		    NS
+	    end;
+	_ -> undef
+    end.
+
+
+stop_cond(Handler) ->
+    case is_running(Handler) of
+	true ->
+	    stop_simulation(Handler),
+	    true;
+	false ->
+	    false
+    end.
+
+start_cond(Handler, St) ->
+    case St of
+	true ->
+	    start_simulation(Handler);
+	false ->
+	    ok
+    end.
+
+np_format(Format, Vars) ->
+    lists:flatten(io_lib_format:fwrite(Format,Vars)).
+
+alloc(Handler, Mote, Size) ->
+    alloc(Handler, Mote, Size, 1000).
+
+alloc(Handler, Mote, Size, Wait) ->
+    St = stop_cond(Handler),
+    Command = np_format("-2 ~.b~n",[Size]),
+    mote_write(Handler, Mote, Command),
+    Result = case Wait of 
+		 0 ->
+		     ok;
+		 T ->
+		     R = wait_for_result(Handler, Mote, T),
+		     %% 0x1234\n -> cut of first two and last character
+		     list_to_integer(string:substr(R, 3, length(R)-3), 16)
+	     end,
+    ok = start_cond(Handler, St),
+    Result.
+
+write(Handler, Mote, Data) ->
+    Ptr = alloc(Handler, Mote, length(Data)),
+    ok = write(Handler, mote, Data, Ptr),
+    Ptr.
+
+write(Handler, Mote, Data, Ptr) ->
+    St = stop_cond(Handler),
+    Result = write_chunks(Handler, Mote, Data, Ptr, 20),
+    ok = start_cond(Handler, St),
+    Result.
+
+write_chunks(_, _, [], _, _) -> ok;
+write_chunks(Handler, Mote, Data, Ptr, ChS) -> 
+    ToWrite = lists:sublist(Data, ChS),
+    Rest = lists:nthtail(Data, length(ToWrite)),
+    CommandData = lists:flatten([np_format("~2.16.0b", [X]) || X<-ToWrite]),
+    Command = np_format("-1 ~.16b ~s~n", [Ptr, CommandData]),
+    mote_write(Handler, Mote, Command),
+    case wait_for_result(Handler, Mote)=:="ok" of
+	true ->
+	    write_chunks(Handler, Mote, Rest, Ptr+length(ToWrite), ChS);
+	_ ->
+	    undef
+    end.
+
+read(Handler, Mote, Ptr, Size) ->
+    St = stop_cond(Handler),
+    Result = read_chunks(Handler, Mote, Ptr, Size, 20),
+    ok = start_cond(Handler, St),
+    Result.
+
+read_chunks(Handler, Mote, Ptr, Size, ChS) ->
+    read_chunks(Handler, Mote, Ptr, Size, ChS, []).
+
+read_chunks(_, _, _, 0, _, Data) -> Data;
+read_chunks(Handler, Mote, Ptr, Size, ChS, Acc) -> 
+    ReadSize = case Size<ChS of
+		   true ->
+		       Size;
+		   _ ->
+		       ChS
+	       end,
+    Command = np_format("-3 ~.16b ~.b~n", [Ptr, ReadSize]),
+    mote_write(Handler, Mote, Command),
+    case wait_for_result(Handler, Mote) of
+	undef ->
+	    undef;
+	RawData ->
+	    read_chunks(Handler, Mote, Ptr+ReadSize, Size-ReadSize, ChS, Acc ++ pairs(lists:droplast(RawData)))
+    end.
+
+pairs(L) ->
+    pairs(L, []).
+
+pairs([], Acc) -> lists:reverse(Acc);
+pairs(L, Acc) -> 
+   pairs(lists:nthtail(L, 2), 
+	 [list_to_integer(lists:sublist(L, 2), 16)| Acc]).
+

@@ -139,6 +139,9 @@ process_input(char* input){
   case -0x03:
     read_mem(arguments);
     break;
+  case -0x04:
+    nifty_sizeof(arguments);
+    break;
   /* generated functions */
   {% for name in fn %}
   case {{forloop.counter0}}:
