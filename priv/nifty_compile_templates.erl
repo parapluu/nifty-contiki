@@ -9,12 +9,15 @@ main(_) ->
 	       {custom_filters_modules, [nifty_filters]}, 
 	       {compiler_options, [debug_info]},
 	       return_errors],
-    case erlydtl:compile("templates/contiki.tpl", nifty_contiki_template, Options) of 
-	{ok, nifty_contiki_template} ->
-	    ok;
-	E ->
-	    io:format("Error: ~p~n", [E])
-    end.
-
-
-
+    ok = case erlydtl:compile("templates/contiki.tpl", nifty_contiki_template, Options) of 
+	     {ok, nifty_contiki_template} ->
+		 ok;
+	     E1 ->
+		 io:format("Error: ~p~n", [E1])
+	 end,
+    ok = case erlydtl:compile("templates/erlang_support.tpl", nifty_support_template, Options) of 
+	     {ok, nifty_support_template} ->
+		 ok;
+	     E2 ->
+		 io:format("Error: ~p~n", [E2])
+	 end.

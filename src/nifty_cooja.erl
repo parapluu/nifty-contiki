@@ -24,12 +24,14 @@
 	 %% nifty interface
 	 alloc/3,
 	 alloc/4,
+	 free/3,
 	 write/3,
 	 write/4,
 	 read/4,
 	 %% higher level
 	 wait_for_result/2,
-	 wait_for_result/3
+	 wait_for_result/3,
+	 wait_for_msg/4
 	]).
 
 start_node() ->
@@ -313,6 +315,25 @@ wait_for_result(Handler, Mote, T, Msg, Acc) ->
 	_ -> undef
     end.
 
+wait_for_msg(Handler, Receiver, Timeout, Msg) ->
+    wait_for_msg(Handler, Receiver, Timeout*500, Msg, "").
+
+wait_for_msg(_, _, -1, _, _) -> false;
+wait_for_msg(Handler, Receiver, T, Msg, Acc) ->
+    case state() of
+	{running, _} ->
+	    S = mote_read(Handler, Receiver),
+	    NS = Acc++S,
+	    case re:run(NS, Msg) of
+		{match, _} ->
+		    ok = simulation_step_ms(Handler),
+		    wait_for_result(Handler, Receiver, T-1, Msg, NS);
+		nomatch ->
+		    true
+	    end;
+	_ ->
+	    false
+    end.
 
 stop_cond(Handler) ->
     case is_running(Handler) of
@@ -331,15 +352,12 @@ start_cond(Handler, St) ->
 	    ok
     end.
 
-np_format(Format, Vars) ->
-    lists:flatten(io_lib_format:fwrite(Format,Vars)).
-
 alloc(Handler, Mote, Size) ->
     alloc(Handler, Mote, Size, 1000).
 
 alloc(Handler, Mote, Size, Wait) ->
     St = stop_cond(Handler),
-    Command = np_format("-2 ~.b~n",[Size]),
+    Command = format("-2 ~.b~n",[Size]),
     mote_write(Handler, Mote, Command),
     Result = case Wait of 
 		 0 ->
@@ -348,6 +366,23 @@ alloc(Handler, Mote, Size, Wait) ->
 		     R = wait_for_result(Handler, Mote, T),
 		     %% 0x1234\n -> cut of first two and last character
 		     list_to_integer(string:substr(R, 3, length(R)-3), 16)
+	     end,
+    ok = start_cond(Handler, St),
+    Result.
+
+free(Handler, Mote, Size) ->
+    free(Handler, Mote, Size, 1000).
+
+free(Handler, Mote, Size, Wait) ->
+    St = stop_cond(Handler),
+    Command = format("-5 ~.16b~n",[Size]),
+    mote_write(Handler, Mote, Command),
+    Result = case Wait of 
+		 0 ->
+		     ok;
+		 T ->
+		     true = wait_for_msg(Handler, Mote, T, "ok\n"),
+		     ok
 	     end,
     ok = start_cond(Handler, St),
     Result.
@@ -367,8 +402,8 @@ write_chunks(_, _, [], _, _) -> ok;
 write_chunks(Handler, Mote, Data, Ptr, ChS) -> 
     ToWrite = lists:sublist(Data, ChS),
     Rest = lists:nthtail(Data, length(ToWrite)),
-    CommandData = lists:flatten([np_format("~2.16.0b", [X]) || X<-ToWrite]),
-    Command = np_format("-1 ~.16b ~s~n", [Ptr, CommandData]),
+    CommandData = lists:flatten([format("~2.16.0b", [X]) || X<-ToWrite]),
+    Command = format("-1 ~.16b ~s~n", [Ptr, CommandData]),
     mote_write(Handler, Mote, Command),
     case wait_for_result(Handler, Mote)=:="ok" of
 	true ->
@@ -394,7 +429,7 @@ read_chunks(Handler, Mote, Ptr, Size, ChS, Acc) ->
 		   _ ->
 		       ChS
 	       end,
-    Command = np_format("-3 ~.16b ~.b~n", [Ptr, ReadSize]),
+    Command = format("-3 ~.16b ~.b~n", [Ptr, ReadSize]),
     mote_write(Handler, Mote, Command),
     case wait_for_result(Handler, Mote) of
 	undef ->

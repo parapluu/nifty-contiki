@@ -4,7 +4,7 @@
 
 -type reason() :: atom().
 -type options() :: proplists:proplist().
--type renderout() :: iolist().
+-type renderout() :: {iolist(), iolist()}.
 -type modulename() :: string().
 
 %% @doc Renders an <code>InterfaceFile</code> into a Erlang module containing of <code>ModuleName</code>.erl
@@ -36,7 +36,8 @@ render(InterfaceFile, ModuleName, CFlags, Options) ->
 			  {"maxbuf", "100"},
 			  {"none", none}],
 	    {ok, COutput} = nifty_contiki_template:render(RenderVars),
-	    COutput
+	    {ok, SOutput} = nifty_support_template:render(RenderVars),
+	    {COutput, SOutput}
     end.
 
 filter_functions(InterfaceFile, Functions, FuncLoc) ->
@@ -68,8 +69,10 @@ store_files(_, ModuleName, _, RenderOutput, Path) ->
 	     {error,eexist} -> ok;
 	     _ -> fail
 	 end,
-    ContikiOutput = RenderOutput,
-    ok = fwrite_render(Path, ModuleName, ".", "contiki_app.c", ContikiOutput).
+    {ContikiOutput, SupportOutput} = RenderOutput,
+    ok = fwrite_render(Path, ModuleName, ".", "contiki_app.c", ContikiOutput),
+    ok = fwrite_render(Path, ModuleName, ".", ModuleName++".erl", SupportOutput),
+    ok = erl_tidy:file(filename:join([Path, ModuleName, ".", ModuleName++".erl"])).
 
 fwrite_render(Path, ModuleName, Dir, FileName, Template) ->
     file:write_file(filename:join([Path, ModuleName, Dir, FileName]), [Template]).
