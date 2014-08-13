@@ -14,9 +14,9 @@
 {################################################################}
 {% if phase=="to_c" %}
     {% if typedef|getNth:2=="unsigned" %}
-   {{carg}} = (void*)strtoull(curarg, &nextarg, 10);
+   {{carg}} = (void*)strtoull(curarg, &nextarg, 16);
     {% else %}
-   {{carg}} = (void*)strtoll(curarg, &nextarg, 10);
+   {{carg}} = (void*)strtoll(curarg, &nextarg, 16);
     {% endif %}
 {% endif %}
 

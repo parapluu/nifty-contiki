@@ -34,7 +34,6 @@ write_mem(char* stream) {
   char* ptr;
   char* data;
   ptr = (char*)strtoull(stream, &data, 16);
-  printf("%p\n", ptr);
   data++;
   while (((*data)!='\n') && ((*data)!=0)) {
     *ptr = hexstrtochar(data, &data);
@@ -77,7 +76,7 @@ nifty_sizeof(char* stream) {
 		{% with kind=types|fetch:type|getNth:1 %}
 			{% if kind=="base" or kind=="userdef" or kind=="typedef" %}
   if (!(strcmp((const char*)typename, "{{type}}"))) {
-    printf("%ld\n", sizeof({{type|discard_restrict}}));
+    printf(SIZEOF_FORMAT, sizeof({{type|discard_restrict}}));
     return;
   }
 			{% endif %}
@@ -85,4 +84,12 @@ nifty_sizeof(char* stream) {
 	{% endfor %}
   {% endwith %}
   printf("undef\n");
+}
+
+static void
+free_mem(char* stream) {
+  void* ptr;
+  ptr = (void*)strtoull(stream, &stream, 16);
+  free(ptr);
+  printf("ok\n");
 }

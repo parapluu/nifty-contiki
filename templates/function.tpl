@@ -117,6 +117,8 @@ niftycall_{{name}}(char* args) {
   {% endwith %}
 
   return forward;
+  curarg++;
+  nextarg++;
 }
 	{% endfor %}
 {% endwith %}
@@ -141,6 +143,9 @@ process_input(char* input){
     break;
   case -0x04:
     nifty_sizeof(arguments);
+    break;
+  case -0x05:
+    free_mem(arguments);
     break;
   /* generated functions */
   {% for name in fn %}

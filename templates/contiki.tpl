@@ -1,5 +1,6 @@
 #include "contiki.h"
 #include "dev/serial-line.h"
+#include "dev/uart1.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -7,8 +8,16 @@
 
 #include "{{header|absname}}"
 
-PROCESS(echo_serial, "Arbitrary Documentation String");
-AUTOSTART_PROCESSES(&echo_serial);
+#ifdef __MSP430__
+#define strtoll(a,b,c) strtol((a),(b),(c))
+#define strtoull(a,b,c) strtoul((a),(b),(c))
+#define SIZEOF_FORMAT "%u\n"
+#else
+#define SIZEOF_FORMAT "%lu\n"
+#endif
+
+PROCESS({{module}}, "Process {{module}}");
+AUTOSTART_PROCESSES(&{{module}});
 
 /*
  * 	+ provide platform specific information (size of types)
@@ -22,9 +31,14 @@ AUTOSTART_PROCESSES(&echo_serial);
 
 {% include "function.tpl" %}
 
-PROCESS_THREAD(echo_serial, ev, data)
+PROCESS_THREAD({{module}}, ev, data)
 {
   PROCESS_BEGIN();
+  /* UIP hack */
+#if !(!WITH_UIP && !WITH_UIP6)
+  uart1_set_input(serial_line_input_byte);
+  serial_line_init();
+#endif
   for (;;) {
     PROCESS_WAIT_EVENT_UNTIL(ev == serial_line_event_message && data != NULL);
     process_input((char*)data);
