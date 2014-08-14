@@ -129,6 +129,9 @@ process_input(char* input){
   int retval;
   char* arguments;
   function = strtol(input, &arguments, 10);
+  if ((!function) && (input==arguments)) {
+    return; /* invalid input */
+  }
   arguments++;
 {% with fn=symbols|fetch_keys %}
   switch (function) {

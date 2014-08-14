@@ -51,31 +51,38 @@ start_node() ->
     end.
 
 start(CoojaPath, Simfile) ->
-    start(CoojaPath, Simfile, false).
+    start(CoojaPath, Simfile, []).
 
-start(CoojaPath, Simfile, Debug) ->
-    case start_node() of
-	ok ->
-	    case lists:member(cooja_server, registered()) of
-		true -> 
-		    fail;
-		false ->
-		    CmdTmpl = "java -jar ~s -nogui=~s",
-		    AbsSimPath = filename:absname(Simfile),
-		    Cmd = format(CmdTmpl, ["cooja.jar", AbsSimPath]),
-		    P = spawn(fun () -> start_command(CoojaPath, Cmd, Debug) 
-			      end),
-		    true = register(cooja_server, P),
-		    receive
-			{pid, Pid} ->
-			    P ! {handler, Pid},
-			    Pid
-		    end
-	    end;
-	fail ->
-	    fail
-    end.
-
+start(CoojaPath, Simfile, Options) ->
+    {ok, OldPath} = file:get_cwd(),
+    Return = case start_node() of
+		 ok ->
+		     case lists:member(cooja_server, registered()) of
+			 true -> 
+			     fail;
+			 false ->
+			     CmdTmpl = case lists:member(gui, Options) of
+					   true ->
+					       "java -jar ~s -quickstart=~s";
+					   _ ->
+					       "java -jar ~s -nogui=~s"
+				       end,
+			     AbsSimPath = filename:absname(Simfile),
+			     Cmd = format(CmdTmpl, ["cooja.jar", AbsSimPath]),
+			     P = spawn(fun () -> start_command(CoojaPath, Cmd, lists:member(debug, Options)) 
+				       end),
+			     true = register(cooja_server, P),
+			     receive
+				 {pid, Pid} ->
+				     P ! {handler, Pid},
+				     Pid
+			     end
+		     end;
+		 fail ->
+		     fail
+	     end,
+    ok = file:set_cwd(OldPath),
+    Return.
 
 wait_for_cooja() ->
     case state() of
@@ -276,13 +283,15 @@ mote_unlisten(Handler, Mote) ->
 mote_read(Handler, Mote) ->
     Handler ! {self(), mote_read, {Mote}},
     receive
-	Data -> Data
+	Data -> 
+	    Data
     end.
 
 mote_read_s(Handler, Mote) ->
     Handler ! {self(), mote_read_s, {Mote}},
     receive
-	Data -> Data
+	Data ->
+	    Data
     end.
 
 msg_wait(Handler, Msg) ->
@@ -297,7 +306,7 @@ wait_for_result(Handler, Mote) ->
     wait_for_result(Handler, Mote, 1000).
 
 wait_for_result(Handler, Mote, T) ->
-    wait_for_result(Handler, Mote, T, "\n", "").
+    wait_for_result(Handler, Mote, T, ".*\n", "").
 
 wait_for_result(_,_,-1,_,_) -> false;
 wait_for_result(Handler, Mote, T, Msg, Acc) ->
@@ -305,14 +314,15 @@ wait_for_result(Handler, Mote, T, Msg, Acc) ->
 	{running, _} ->
 	    S = mote_read(Handler, Mote),
 	    NS = Acc++S,
-	    case string:str(NS, Msg) of
-		0 ->
+	    case re:run(NS, Msg) of
+		{match, _} ->
+		    NS;
+		nomatch ->
 		    ok = simulation_step_ms(Handler),
-		    wait_for_result(Handler, Mote, T-1, Msg, NS);
-		_ ->
-		    NS
+		    wait_for_result(Handler, Mote, T-1, Msg, NS)
 	    end;
-	_ -> undef
+	_ -> 
+	    undef
     end.
 
 wait_for_msg(Handler, Receiver, Timeout, Msg) ->
@@ -326,10 +336,10 @@ wait_for_msg(Handler, Receiver, T, Msg, Acc) ->
 	    NS = Acc++S,
 	    case re:run(NS, Msg) of
 		{match, _} ->
-		    ok = simulation_step_ms(Handler),
-		    wait_for_result(Handler, Receiver, T-1, Msg, NS);
+		    true;
 		nomatch ->
-		    true
+		    ok = simulation_step_ms(Handler),
+		    wait_for_msg(Handler, Receiver, T-1, Msg, NS)
 	    end;
 	_ ->
 	    false
@@ -365,6 +375,7 @@ alloc(Handler, Mote, Size, Wait) ->
 		 T ->
 		     R = wait_for_result(Handler, Mote, T),
 		     %% 0x1234\n -> cut of first two and last character
+		     %% io:format("Alloc result: <<~p>> from command: <<~p>>", [R, Command]),
 		     list_to_integer(string:substr(R, 3, length(R)-3), 16)
 	     end,
     ok = start_cond(Handler, St),
@@ -392,7 +403,7 @@ write(Handler, Mote, Data) ->
     ok = write(Handler, mote, Data, Ptr),
     Ptr.
 
-write(Handler, Mote, Data, Ptr) ->
+write(Handler, Mote, Ptr, Data) ->
     St = stop_cond(Handler),
     Result = write_chunks(Handler, Mote, Data, Ptr, 20),
     ok = start_cond(Handler, St),
@@ -401,11 +412,11 @@ write(Handler, Mote, Data, Ptr) ->
 write_chunks(_, _, [], _, _) -> ok;
 write_chunks(Handler, Mote, Data, Ptr, ChS) -> 
     ToWrite = lists:sublist(Data, ChS),
-    Rest = lists:nthtail(Data, length(ToWrite)),
+    Rest = lists:nthtail(length(ToWrite), Data),
     CommandData = lists:flatten([format("~2.16.0b", [X]) || X<-ToWrite]),
     Command = format("-1 ~.16b ~s~n", [Ptr, CommandData]),
     mote_write(Handler, Mote, Command),
-    case wait_for_result(Handler, Mote)=:="ok" of
+    case wait_for_result(Handler, Mote)=:="ok\n" of
 	true ->
 	    write_chunks(Handler, Mote, Rest, Ptr+length(ToWrite), ChS);
 	_ ->

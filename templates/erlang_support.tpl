@@ -1,4 +1,4 @@
--module({{module}}_support).
+-module({{module}}).
 -export([{% with fn=symbols|fetch_keys %}{% for name in fn %}
 	'{{name}}'/{{ symbols|fetch:name|length|add:1 }},{% endfor %}{% endwith %}
 	get_types/0
@@ -6,7 +6,6 @@
 
 -define(TYPES, {{types}}).
 
--spec get_types() -> dict:dict().
 get_types() -> ?TYPES.
 
 format(Format, Args) ->
