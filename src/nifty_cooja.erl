@@ -335,12 +335,15 @@ wait_for_result(Handler, Mote, T, Msg, Acc) ->
     case state() of
 	{running, _} ->
 	    S = mote_read(Handler, Mote),
-	    NS = Acc++S,
-	    case re:run(NS, "DEBUG.*\n") of
-		{match, [{_, End}]} ->
-		    io:format("~s", [NS]),
+	    RAW_NS = Acc++S,
+	    %% get rid of events
+	    NS = re:replace(RAW_NS, "EVENT:[^\n]*\n", "", [{return, list}]),
+	    case re:run(NS, "DEBUG[^\n]*\n") of
+		{match, [{Start, Length}]} ->
+		    io:format("~s", [string:substr(NS, Start+1, Length)]),
 		    ok = simulation_step_ms(Handler),
-		    wait_for_result(Handler, Mote, T-1, Msg, string:substr(NS, End+1));
+		    RS = re:replace(NS, "DEBUG[^\n]*\n", "", [{return, list}]),
+		    wait_for_result(Handler, Mote, T-1, Msg, RS);
 		_ ->
 		    case re:run(NS, Msg) of
 			{match, _} ->
@@ -362,12 +365,15 @@ wait_for_msg(Handler, Receiver, T, Msg, Acc) ->
     case state() of
 	{running, _} ->
 	    S = mote_read(Handler, Receiver),
-	    NS = Acc++S,
-	    case re:run(NS, "DEBUG.*\n") of
-		{match, [{_, End}]} ->
-		    io:format("~s", [NS]),
+	    RAW_NS = Acc++S,
+	    %% get rid of events
+	    NS = format("~s", [re:replace(RAW_NS, "EVENT:[^\n]*\n", "")]),
+	    case re:run(NS, "DEBUG[^\n]*\n") of
+		{match, [{Start, Length}]} ->
+		    io:format("~s", [string:substr(NS, Start+1, Length)]),
 		    ok = simulation_step_ms(Handler),
-		    wait_for_msg(Handler, Receiver, T-1, Msg, string:substr(NS, End+1));
+		    RS = re:replace(NS, "DEBUG[^\n]*\n", "", [{return, list}]),
+		    wait_for_msg(Handler, Receiver, T-1, Msg, RS);
 		_ ->
 		    case re:run(NS, Msg) of
 			{match, _} ->
