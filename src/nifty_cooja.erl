@@ -337,7 +337,8 @@ wait_for_result(Handler, Mote, T, Msg, Acc) ->
 	    S = mote_read(Handler, Mote),
 	    RAW_NS = Acc++S,
 	    %% get rid of events
-	    NS = re:replace(RAW_NS, "EVENT:[^\n]*\n", "", [{return, list}]),
+	    NS = re:replace(RAW_NS, "EVENT:[^\n]*\n", "", [{return, list}, global]),
+	    io:format("~p~n~p~n", [RAW_NS, NS]),
 	    case re:run(NS, "DEBUG[^\n]*\n") of
 		{match, [{Start, Length}]} ->
 		    io:format("~s", [string:substr(NS, Start+1, Length)]),
@@ -367,7 +368,7 @@ wait_for_msg(Handler, Receiver, T, Msg, Acc) ->
 	    S = mote_read(Handler, Receiver),
 	    RAW_NS = Acc++S,
 	    %% get rid of events
-	    NS = format("~s", [re:replace(RAW_NS, "EVENT:[^\n]*\n", "")]),
+	    NS = re:replace(RAW_NS, "EVENT:[^\n]*\n", "", [{return, list}, global]),
 	    case re:run(NS, "DEBUG[^\n]*\n") of
 		{match, [{Start, Length}]} ->
 		    io:format("~s", [string:substr(NS, Start+1, Length)]),
