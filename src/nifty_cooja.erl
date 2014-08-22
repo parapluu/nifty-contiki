@@ -21,6 +21,7 @@
 	 mote_read/2,
 	 mote_read_s/2,
 	 msg_wait/2,
+	 get_last_event/2,
 	 %% nifty interface
 	 alloc/3,
 	 alloc/4,
@@ -31,7 +32,8 @@
 	 %% higher level
 	 wait_for_result/2,
 	 wait_for_result/3,
-	 wait_for_msg/4
+	 wait_for_msg/4,
+	 next_event/2
 	]).
 
 start_node() ->
@@ -300,8 +302,28 @@ msg_wait(Handler, Msg) ->
 	ok -> ok
     end.
 
+get_last_event(Handler, Id) ->
+    Handler ! {self(), get_last_event, {Id}},
+    receive
+	R -> string:substr(R, 7, length(R)-7)
+    end.
 
-%% nifty interface
+%% high-level stuff
+next_event(Handler, Mote) ->
+    case get_last_event(Handler, Mote) of
+	not_listened_to ->
+	    fail;
+	badid ->
+	    badid;
+	updated ->
+	    next_event(Handler, Mote);
+	no_event ->
+	    ok = simulation_step_ms(Handler),
+	    next_event(Handler, Mote);
+	E ->
+	    E
+    end.
+
 wait_for_result(Handler, Mote) ->
     wait_for_result(Handler, Mote, 1000).
 
@@ -314,12 +336,19 @@ wait_for_result(Handler, Mote, T, Msg, Acc) ->
 	{running, _} ->
 	    S = mote_read(Handler, Mote),
 	    NS = Acc++S,
-	    case re:run(NS, Msg) of
-		{match, _} ->
-		    NS;
-		nomatch ->
+	    case re:run(NS, "DEBUG.*\n") of
+		{match, [{_, End}]} ->
+		    io:format("~s", [NS]),
 		    ok = simulation_step_ms(Handler),
-		    wait_for_result(Handler, Mote, T-1, Msg, NS)
+		    wait_for_result(Handler, Mote, T-1, Msg, string:substr(NS, End+1));
+		_ ->
+		    case re:run(NS, Msg) of
+			{match, _} ->
+			    NS;
+			nomatch ->
+			    ok = simulation_step_ms(Handler),
+			    wait_for_result(Handler, Mote, T-1, Msg, NS)
+		    end
 	    end;
 	_ -> 
 	    undef
@@ -334,12 +363,19 @@ wait_for_msg(Handler, Receiver, T, Msg, Acc) ->
 	{running, _} ->
 	    S = mote_read(Handler, Receiver),
 	    NS = Acc++S,
-	    case re:run(NS, Msg) of
-		{match, _} ->
-		    true;
-		nomatch ->
+	    case re:run(NS, "DEBUG.*\n") of
+		{match, [{_, End}]} ->
+		    io:format("~s", [NS]),
 		    ok = simulation_step_ms(Handler),
-		    wait_for_msg(Handler, Receiver, T-1, Msg, NS)
+		    wait_for_msg(Handler, Receiver, T-1, Msg, string:substr(NS, End+1));
+		_ ->
+		    case re:run(NS, Msg) of
+			{match, _} ->
+			    true;
+			nomatch ->
+			    ok = simulation_step_ms(Handler),
+			    wait_for_msg(Handler, Receiver, T-1, Msg, NS)
+		    end
 	    end;
 	_ ->
 	    false
@@ -362,6 +398,7 @@ start_cond(Handler, St) ->
 	    ok
     end.
 
+%% nifty functions
 alloc(Handler, Mote, Size) ->
     alloc(Handler, Mote, Size, 1000).
 
