@@ -18,9 +18,9 @@
 {################################################################}
 {% if phase=="to_c" %}
     {% if typedef|getNth:2=="unsigned" %}
-   {{carg}} = ({{type}})strtoull(curarg, &nextarg, 10);
+   {{carg}} = ({{type}})strtoull(curarg, &nextarg, 16);
     {% else %}
-   {{carg}} = ({{type}})strtoll(curarg, &nextarg, 10);
+   {{carg}} = ({{type}})strtoll(curarg, &nextarg, 16);
     {% endif %}
 {% endif %}
 
@@ -47,7 +47,7 @@
 
 {################################################################}
 {% if phase=="erlformat" %}
-"~.b "
+"~.16b "
 {% endif %}
 {################################################################}
 {% if phase=="erlconvert" %}

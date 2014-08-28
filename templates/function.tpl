@@ -155,6 +155,7 @@ process_input(char* input){
   case {{forloop.counter0}}:
     retval = niftycall_{{name}}(arguments);
     if (retval!=-1) {
+/*    printf("EVENT:%d:", {{forloop.counter0}}); */
       printf("%.*s\n", retval, nifty_buffer);
     } else {
       printf("badarg\n");

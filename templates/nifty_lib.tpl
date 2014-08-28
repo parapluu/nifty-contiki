@@ -74,7 +74,7 @@ nifty_sizeof(char* stream) {
   {% with type_keys=types|fetch_keys %}
 	{% for type in type_keys %}
 		{% with kind=types|fetch:type|getNth:1 %}
-			{% if kind=="base" or kind=="userdef" or kind=="typedef" %}
+			{% if kind=="userdef" %}
   if (!(strcmp((const char*)typename, "{{type}}"))) {
     printf(SIZEOF_FORMAT, sizeof({{type|discard_restrict}}));
     return;

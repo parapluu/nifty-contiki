@@ -1,6 +1,11 @@
 #include "contiki.h"
 #include "dev/serial-line.h"
+
+#if TARGET==z1
+#include "dev/uart0.h"
+#else
 #include "dev/uart1.h"
+#endif
 
 #include <string.h>
 #include <stdio.h>
@@ -36,7 +41,13 @@ PROCESS_THREAD({{module}}, ev, data)
   PROCESS_BEGIN();
   /* UIP hack */
 #if !(!WITH_UIP && !WITH_UIP6)
+
+#if TARGET==z1
+  uart0_set_input(serial_line_input_byte);
+#else
   uart1_set_input(serial_line_input_byte);
+#endif
+
   serial_line_init();
 #endif
   for (;;) {
