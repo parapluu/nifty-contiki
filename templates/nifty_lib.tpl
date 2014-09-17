@@ -29,7 +29,7 @@ hexstrtochar(const char* stream, char** next) {
   return (char)sum;
 }
 
-static void
+static int
 write_mem(char* stream) {
   char* ptr;
   char* data;
@@ -39,57 +39,56 @@ write_mem(char* stream) {
     *ptr = hexstrtochar(data, &data);
     ptr++;
   }
-  printf("ok\n");
+  return snprintf(nifty_buffer, 100, "ok");
 }
 
-static void
+static int
 allocate_mem(char* stream) {
   unsigned long size;
   char* stup;
   void* ptr;
   size = strtoul(stream, &stup, 10);
   ptr = malloc(size);
-  printf("%p\n", ptr);
+  return snprintf(nifty_buffer, 100, "%p", ptr);
 }
 
-static void
+static int
 read_mem(char* stream) {
   char* ptr;
   unsigned long length;
   unsigned long i;
+  unsigned forward;
   ptr = (char*)strtoull(stream, &stream, 16);
   stream++;
   length = strtoul(stream, &stream, 10);
+  forward = 0;
   for (i=0; i<length; i++) {
-    printf("%.2X", (unsigned char)ptr[i]);
+    forward += snprintf(nifty_buffer+forward, 100-forward, "%.2X", (unsigned char)ptr[i]);
     if (i<length-1)
-      printf(",");
+      forward += snprintf(nifty_buffer+forward, 100-forward, ",");
   }
-  printf("\n");
+  return forward;
 }
 
-static void
+static int
 nifty_sizeof(char* stream) {
   char* typename = stream;
-  {% with type_keys=types|fetch_keys %}
-	{% for type in type_keys %}
-		{% with kind=types|fetch:type|getNth:1 %}
-			{% if kind=="userdef" %}
-  if (!(strcmp((const char*)typename, "{{type}}"))) {
-    printf(SIZEOF_FORMAT, sizeof({{type|discard_restrict}}));
-    return;
+  if (!(strcmp((const char*)typename, "const uint8_t"))) {
+    return snprintf(nifty_buffer, 100, SIZEOF_FORMAT, sizeof(const uint8_t));
   }
-			{% endif %}
-		{% endwith%}
-	{% endfor %}
-  {% endwith %}
-  printf("undef\n");
+  if (!(strcmp((const char*)typename, "const uint8_t *"))) {
+    return snprintf(nifty_buffer, 100, SIZEOF_FORMAT, sizeof(const uint8_t *));
+  }
+  if (!(strcmp((const char*)typename, "uip_ipaddr_t *"))) {
+    return snprintf(nifty_buffer, 100, SIZEOF_FORMAT, sizeof(uip_ipaddr_t *));
+  }
+  return snprintf(nifty_buffer, 100, "undef");
 }
 
-static void
+static int
 free_mem(char* stream) {
   void* ptr;
   ptr = (void*)strtoull(stream, &stream, 16);
   free(ptr);
-  printf("ok\n");
+  return snprintf(nifty_buffer, 100, "ok");
 }

@@ -42,5 +42,5 @@
 {% endif %}
 {################################################################}
 {% if phase=="erlconvert" %}
-list_to_integer(string:substr(R, 3, length(R)-3), 16)
+list_to_integer(string:substr(R, 1, length(R)-1), 16)
 {% endif %}

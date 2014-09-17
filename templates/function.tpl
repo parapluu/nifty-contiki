@@ -9,9 +9,6 @@
 *	cleanup -- cleanup memory used by the function
 */
 
-
-static char nifty_buffer[{{maxbuf}}];
-
 {% with fn=symbols|fetch_keys %}
 	{% for name in fn %}
 int
@@ -124,6 +121,18 @@ niftycall_{{name}}(char* args) {
 {% endwith %}
 
 void
+save_serial(char* buffer, int length) {
+  // uint16_t crc = crc16_data((unsigned char*)buffer, length, 42);
+  // printf("<%.4X>%.*s\n", crc, length, buffer);
+  if (length>100) {
+    printf("fail\n");
+  } else {
+    printf("%.*s\n", length, buffer);
+  }
+}
+
+
+void
 process_input(char* input){
   long function;
   int retval;
@@ -134,34 +143,39 @@ process_input(char* input){
   }
   arguments++;
 {% with fn=symbols|fetch_keys %}
-  switch (function) {
-  case -0x01:
-    write_mem(arguments);
-    break;
-  case -0x02:
-    allocate_mem(arguments);
-    break;
-  case -0x03:
-    read_mem(arguments);
-    break;
-  case -0x04:
-    nifty_sizeof(arguments);
-    break;
-  case -0x05:
-    free_mem(arguments);
-    break;
-  /* generated functions */
+ switch (function) {
+ case -0x01:
+   retval = write_mem(arguments);
+   break;
+ case -0x02:
+   retval = allocate_mem(arguments);
+   break;
+ case -0x03:
+   retval = read_mem(arguments);
+   break;
+ case -0x04:
+   retval = nifty_sizeof(arguments);
+   break;
+ case -0x05:
+   retval = free_mem(arguments);
+   break;
+ case -0x06:
+   /* resend */
+   retval = send_length;
+   break;
+   /* generated functions */
   {% for name in fn %}
-  case {{forloop.counter0}}:
-    retval = niftycall_{{name}}(arguments);
-    if (retval!=-1) {
-/*    printf("EVENT:%d:", {{forloop.counter0}}); */
-      printf("%.*s\n", retval, nifty_buffer);
-    } else {
-      printf("badarg\n");
-    }
-    break;
+ case {{forloop.counter0}}:
+   retval = niftycall_{{name}}(arguments);
+   break;
     {% endfor %}
   }
+ if (retval!=-1) {
+   send_length = retval;
+   save_serial(nifty_buffer, retval);
+ } else {
+   send_length = snprintf(nifty_buffer, 100, "badarg\n");
+   save_serial(nifty_buffer, send_length);
+ }
 {% endwith %}
 }

@@ -24,6 +24,9 @@
 PROCESS({{module}}, "Process {{module}}");
 AUTOSTART_PROCESSES(&{{module}});
 
+static char nifty_buffer[{{maxbuf}}];
+static int send_length;
+
 /*
  * 	+ provide platform specific information (size of types)
  */

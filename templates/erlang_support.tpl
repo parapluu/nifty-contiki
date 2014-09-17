@@ -1,8 +1,8 @@
 -module({{module}}).
 -export([{% with fn=symbols|fetch_keys %}{% for name in fn %}
 	'{{name}}'/{{ symbols|fetch:name|length|add:1 }},
-	'{{name}}_call'/{{ symbols|fetch:name|length|add:1 }},
-	'{{name}}_result'/2,
+{#	'{{name}}_call'/{{ symbols|fetch:name|length|add:1 }},
+	'{{name}}_result'/2, #}
 	{% endfor %}{% endwith %}
 	get_types/0
 	]).
