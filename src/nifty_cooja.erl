@@ -14,11 +14,15 @@
 	 simulation_time/1,
 	 simulation_time_ms/1,
 	 simulation_step_ms/1,
+	 simulation_step/2,
 	 %% motes
 	 motes/1,
 	 mote_write/3,
 	 mote_listen/2,
 	 mote_unlisten/2,
+	 mote_hw_listen/2,
+	 mote_hw_unlisten/2,
+	 mote_hw_events/2,
 	 mote_read_pushback/3,
 	 mote_read/2,
 	 mote_read_s/2,
@@ -272,6 +276,12 @@ simulation_step_ms(Handler) ->
 	Rsp -> Rsp
     end.
 
+simulation_step(Handler, Time) ->
+    Handler ! {self(), simulation_step, {Time}},
+    receive
+	Rsp -> Rsp
+    end.
+
 motes(Handler) ->
     Handler ! {self(), motes},
     receive
@@ -294,6 +304,24 @@ mote_unlisten(Handler, Mote) ->
     Handler ! {self(), mote_unliste, {Mote}},
     receive
 	ok -> ok
+    end.
+
+mote_hw_listen(Handler, Mote) ->
+    Handler ! {self(), mote_listen, {Mote}},
+    receive
+	ok -> ok
+    end.
+
+mote_hw_unlisten(Handler, Mote) ->
+    Handler ! {self(), mote_unliste, {Mote}},
+    receive
+	ok -> ok
+    end.
+
+mote_hw_events(Handler, Mote) ->
+    Handler ! {self(), mote_hw_events, {Mote}},
+    receive
+	Rsp -> Rsp
     end.
 
 mote_read_pushback(Handler, Mote, Data) ->
