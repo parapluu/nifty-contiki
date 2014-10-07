@@ -16,6 +16,11 @@
 	 simulation_step_ms/1,
 	 simulation_step/2,
 	 %% motes
+	 mote_types/1,
+	 mote_add/2,
+	 mote_del/2,
+	 mote_get_pos/2,
+	 mote_set_pos/3,
 	 motes/1,
 	 mote_write/3,
 	 mote_listen/2,
@@ -288,6 +293,37 @@ motes(Handler) ->
 	Motes -> Motes
     end.
 
+mote_types(Handler) ->
+    Handler ! {self(), mote_types},
+    receive
+	Types -> Types
+    end.
+
+mote_add(Handler, Type) ->
+    Handler ! {self(), mote_add, {Type}},
+    receive
+	Rsp -> Rsp
+    end.    
+
+mote_del(Handler, Id) ->
+    Handler ! {self(), mote_del, {Id}},
+    receive
+	Rsp -> Rsp
+    end.
+
+mote_get_pos(Handler, Id) ->
+    Handler ! {self(), mote_get_pos, {Id}},
+    receive
+	Pos -> Pos
+    end.    
+
+mote_set_pos(Handler, Id, Pos) ->
+    {X, Y, Z} = Pos,
+    Handler ! {self(), mote_set_pos, {Id, X, Y, Z}},
+    receive
+	Rsp -> Rsp
+    end.
+
 mote_write(Handler, Mote, Data) ->
     Handler ! {self(), mote_write, {Mote, Data}},
     receive
@@ -297,25 +333,25 @@ mote_write(Handler, Mote, Data) ->
 mote_listen(Handler, Mote) ->
     Handler ! {self(), mote_listen, {Mote}},
     receive
-	ok -> ok
+	Rsp -> Rsp
     end.
 
 mote_unlisten(Handler, Mote) ->
     Handler ! {self(), mote_unliste, {Mote}},
     receive
-	ok -> ok
+	Rsp -> Rsp
     end.
 
 mote_hw_listen(Handler, Mote) ->
-    Handler ! {self(), mote_listen, {Mote}},
+    Handler ! {self(), mote_hw_listen, {Mote}},
     receive
-	ok -> ok
+	Rsp -> Rsp
     end.
 
 mote_hw_unlisten(Handler, Mote) ->
-    Handler ! {self(), mote_unliste, {Mote}},
+    Handler ! {self(), mote_hw_unliste, {Mote}},
     receive
-	ok -> ok
+	Rsp -> Rsp
     end.
 
 mote_hw_events(Handler, Mote) ->
