@@ -44,7 +44,8 @@
 	 wait_for_result/2,
 	 wait_for_result/3,
 	 wait_for_msg/4,
-	 next_event/2
+	 next_event/2,
+	 duty_cycle/2
 	]).
 
 start_node() ->
@@ -589,3 +590,18 @@ read_chunks(Handler, Mote, Ptr, Size, ChS, Acc) ->
 
 pairs(L) ->
     [list_to_integer(I, 16) ||I <-string:tokens(L, ",")].
+
+duty_cycle(Events, SimTime) ->
+    on_time(Events, 0, off, SimTime) / SimTime.
+
+on_time([], Acc, off, _) -> Acc;
+on_time([], Acc, Start, End) ->
+    Acc + End - Start;
+on_time([{radio,["on",Time]}|T], Acc, off, E) -> 
+    on_time(T, Acc, erlang:list_to_integer(Time), E);
+on_time([{radio,["off", _]}|T], Acc, off, E) -> 
+    on_time(T, Acc, off, E);
+on_time([{radio,["off", Time]}|T], Acc, Start, E) -> 
+    on_time(T, Acc + erlang:list_to_integer(Time) - Start, off, E);
+on_time([_|T], Acc, S, E) -> 
+    on_time(T, Acc, S, E).
