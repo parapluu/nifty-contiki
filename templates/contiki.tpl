@@ -27,15 +27,9 @@ AUTOSTART_PROCESSES(&{{module}});
 static char nifty_buffer[{{maxbuf}}];
 static int send_length;
 
-/*
- * 	+ provide platform specific information (size of types)
- */
 {% include "nifty_lib.tpl" %}
 
-
-/* include "structures.tpl"
- * 	+ provide translations for each struct type from string to struct and from struct to string
- */
+{% include "structure.tpl" %}
 
 {% include "function.tpl" %}
 

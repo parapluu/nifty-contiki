@@ -15,6 +15,8 @@
 	 simulation_time_ms/1,
 	 simulation_step_ms/1,
 	 simulation_step/2,
+	 radio_set_config/2,
+	 radio_get_config/1,
 	 %% motes
 	 mote_types/1,
 	 mote_add/2,
@@ -284,6 +286,18 @@ simulation_step_ms(Handler) ->
 
 simulation_step(Handler, Time) ->
     Handler ! {self(), simulation_step, {Time}},
+    receive
+	Rsp -> Rsp
+    end.
+
+radio_set_config(Handler, {Radio, Options}) ->
+    Handler ! {self(), radio_set_config, {Radio, Options}},
+    receive
+	Rsp -> Rsp
+    end.
+
+radio_get_config(Handler) ->
+    Handler ! {self(), radio_get_config},
     receive
 	Rsp -> Rsp
     end.
