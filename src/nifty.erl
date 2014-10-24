@@ -1,3 +1,12 @@
+%%% -------------------------------------------------------------------
+%%% Copyright (c) 2014, Andreas Löscher <andreas.loscher@it.uu.se> and
+%%%                     Konstantinos Sagonas <kostis@it.uu.se>
+%%% All rights reserved.
+%%%
+%%% This file is distributed under the Simplified BSD License.
+%%% Details can be found in the LICENSE file.
+%%% -------------------------------------------------------------------
+
 -module(nifty).
 -export([%% create modules
 	 compile/3,
@@ -10,7 +19,9 @@
 	 pointer/1,
 	 pointer_of/2,
 	 pointer_of/1,
-	 as_type/3,
+	 %% types
+	 as_type/2,
+	 size_of/1,
 	 %% memory allocation
 	 mem_write/1,
 	 mem_write/2,
@@ -48,7 +59,7 @@ load_dependencies() ->
     ok = load_dependency(erlydtl).
 
 load_dependency(Module) ->		    
-    case code:load_file(Module) of
+    case code:ensure_loaded(Module) of
 	{error, nofile} ->
 	    %% module not found
 	    NiftyPath = code:lib_dir(nifty, deps),
@@ -67,7 +78,7 @@ load_dependency(Module) ->
 %% <code>InterfaceFile</code> specifies the header file. <code>Module</code> specifies 
 %% the module name of the translated NIF. <code>Options</code> specifies the compile
 %% options. These options are equivalent to rebar's config options.
--spec compile(string(), module(), options()) -> 'ok' | 'fail'.
+-spec compile(string(), module(), options()) -> 'ok' | {'error', reason()} | {'warning' , {'not_complete' , [nonempty_string()]}}.
 compile(InterfaceFile, Module, Options) ->
     nifty_compiler:compile(InterfaceFile, Module, Options).
 
@@ -107,6 +118,7 @@ get_types() ->
        {"unsigned long long *",{base,["*","int","unsigned","longlong"]}},
        {"float *",{base,["*","float","signed","none"]}},
        {"double *",{base,["*","double","signed","none"]}},
+       {"_Bool", {typedef, "int"}},
        %% special types
        {"void *",{base,["*","void","signed","none"]}},
        {"char *",{base,["*","char","signed","none"]}}
@@ -114,27 +126,47 @@ get_types() ->
 
 get_derefed_type(Type, Module) ->
     Types = Module:get_types(),
-    ResType = nifty_typetable:resolve_type(Type, Types),
-    {_, TypeDef} = dict:fetch(ResType, Types),
-    [H|_] = TypeDef,
-    case (H=:="*") orelse (string:str(H, "[")>0) of
-	true -> 
-	    [_|Token] = lists:reverse(string:tokens(ResType, " ")),
-	    NType = string:join(lists:reverse(Token), " "),
-	    ResNType = nifty_typetable:resolve_type(NType, Types),
-	    case dict:is_key(ResNType, Types) of
-		true ->
-		    {_, DTypeDef} = dict:fetch(ResNType, Types),
-		    [DH|_] = DTypeDef,
-		    case (DH=:="*") orelse (string:str(DH, "[")>0) of
-			true -> {pointer, ResNType};
-			false -> {final, ResNType}
+    case dict:is_key(Type, Types) of
+	true ->
+	    ResType = nifty_types:resolve_type(Type, Types),
+	    {_, TypeDef} = dict:fetch(ResType, Types),
+	    [H|_] = TypeDef,
+	    case (H=:="*") orelse (string:str(H, "[")>0) of
+		true -> 
+		    [_|Token] = lists:reverse(string:tokens(ResType, " ")),
+		    NType = string:join(lists:reverse(Token), " "),
+		    ResNType = nifty_types:resolve_type(NType, Types),
+		    case dict:is_key(ResNType, Types) of
+			true ->
+			    {_, DTypeDef} = dict:fetch(ResNType, Types),
+			    [DH|_] = DTypeDef,
+			    case DH of 
+				{_, _} -> {final, ResNType};
+				_ -> case (DH=:="*") orelse (string:str(DH, "[")>0) of
+					 true -> {pointer, ResNType};
+					 false -> {final, ResNType}
+				     end
+			    end;
+			false ->
+			    undef
 		    end;
 		false ->
-		    undef
+		    {final, ResType}
 	    end;
 	false ->
-	    {final, ResType}
+	    case lists:last(Type) of
+		$* ->
+		    %% pointer
+		    NName = string:strip(string:left(Type, length(Type)-1)),
+		    case lists:last(NName) of
+			$* ->
+			    {pointer, NName};
+			_ ->
+			    {final, NName}
+		    end;
+		_ ->
+		    {error, unknown_type}
+	    end
     end.
 
 %% @doc Dereference a nifty pointer
@@ -143,48 +175,47 @@ dereference(Pointer) ->
     {Address, ModuleType} = Pointer,
     [ModuleName, Type] = string:tokens(ModuleType, "."),
     Module = list_to_atom(ModuleName),
-    case Module of
-	nifty ->
-	    build_builtin_type(Type, Address);
-	_ ->
-	    NType = get_derefed_type(Type, Module),
-	    case NType of
-		{pointer, PType} ->
-		    {raw_deref(Address), ModuleName++"."++PType};
-		{final, DType} ->
-		    build_type(Module, DType, Address);
-		undef ->
-		    {error, undefined}
-	    end
+    %% case Module of
+    %% 	nifty ->
+    %% 	    build_builtin_type(Type, Address);
+    %% 	_ ->
+    NType = get_derefed_type(Type, Module),
+    case NType of
+	{pointer, PType} ->
+	    {raw_deref(Address), ModuleName++"."++PType};
+	{final, DType} ->
+	    build_type(Module, DType, Address);
+	undef ->
+	    {error, undef}
     end.
+    %% end.
 
-build_builtin_type(DType, Address) ->
-    case DType of
-	"void *" -> {raw_deref(Address), "undef"};
-	"char *" -> cstr_to_list({Address, "nifty.char *"});
-	_ -> build_type(nifty, DType, Address)
-    end.
+%% build_builtin_type(DType, Address) ->
+%%     case DType of
+%% 	"void *" -> {raw_deref(Address), "undef"};
+%% 	"char *" -> cstr_to_list({Address, "nifty.char *"});
+%% 	_ -> build_type(nifty, DType, Address)
+%%     end.
 
 build_type(Module, Type, Address) ->
     Types = Module:get_types(),
     case dict:is_key(Type, Types) of
 	true -> 
-	    {Kind, Def} =  dict:fetch(Type, Types),
+	    RType = nifty_types:resolve_type(Type, Types),
+	    {Kind, Def} =  dict:fetch(RType, Types),
 	    case Kind of
 		userdef ->
-		    [Name] = Def,
-		    RR = dict:fetch(Name, Types),
-		    case  RR of
-			{struct, _} -> 
+		    case Def of 
+			[{struct, Name}] ->
 			    Module:erlptr_to_record({Address, Name});
-			_ -> 
-			    {error, undef}
+			_ ->
+			    {error, undef2}
 		    end;
 		base ->
 		    case Def of
-			["*", "char", Sign, _] ->
+			["char", Sign, _] ->
 			    int_deref(Address, 1, Sign);
-			["*", "int", Sign, L] ->
+			["int", Sign, L] ->
 			    {_, {ShI, I, LI, LLI, _, _}} = proplists:lookup("sizes", get_config()),
 			    Size = case L of
 				       "short" ->
@@ -197,33 +228,18 @@ build_type(Module, Type, Address) ->
 					   LLI
 				   end,
 			    int_deref(Address, Size, Sign);
-			["*", "float", _, _] ->
+			["float", _, _] ->
 			    float_deref(Address);
-			["*", "double", _, _] ->
+			["double", _, _] ->
 			    double_deref(Address);
-			[H|_] ->
-			    case H of
-				$* ->
-				    {error, unknown_builtin_type};
-				_ ->
-				    {error, not_a_pointer}
-			    end
+			_ ->
+			    {error, unknown_builtin_type}
 		    end;
 		_ ->
 		    {error, unknown_type}
 	    end;
 	false ->
-	    %% check if the type is a pointer and try
-	    %% to dereference the type "blind"
-	    case string:right(Type, 1) of
-		"*" ->
-		    %% pointer
-		    {_, Size} = proplists:get_value("arch", nifty:get_config()),
-		    NAddr = int_deref(Address, Size, "unsigned"),
-		    {NAddr, atom_to_list(Module)++"."++string:left(Type, length(Type)-1)};
-		_ ->
-		    {error, unknown_type}
-	    end
+	    {error, unknown_type}
     end.
 
 int_deref(Addr, Size, Sign) ->
@@ -274,33 +290,56 @@ list_to_cstr(_) ->
 cstr_to_list(_) ->
     erlang:nif_error(nif_library_not_loaded).
 
-%% size of a base type
+%% @doc size of a base type, no error handling
+-spec size_of(nonempty_string()) -> integer() | undef.
 size_of(Type) -> 
     Types = get_types(),
-    case dict:fetch(Type, Types) of
-	{base, ["char", _, _]} ->
-	    1;
-	{base, ["int", _, L]} ->
-	    {_, {ShI, I, LI, LLI, _, _}} = proplists:lookup("sizes", get_config()),
-	    case L of
-		"short" ->
-		    ShI;
-		"none" ->
-		    I;
-		"long" ->
-		    LI;
-		"longlong" ->
-		    LLI
+    case dict:is_key(Type, Types) of
+	true ->
+	    %% builtin
+	    case dict:fetch(Type, Types) of
+		{base, ["char", _, _]} ->
+		    1;
+		{base, ["int", _, L]} ->
+		    {_, {ShI, I, LI, LLI, _, _}} = proplists:lookup("sizes", get_config()),
+		    case L of
+			"short" ->
+			    ShI;
+			"none" ->
+			    I;
+			"long" ->
+			    LI;
+			"longlong" ->
+			    LLI
+		    end;
+		{base, ["float", _, _]}->
+		    {_, {_, _, _, _, Fl, _}} = proplists:lookup("sizes", get_config()),
+		    Fl;
+		{base, ["double", _, _]}->
+		    {_, {_, _, _, _, _, Dbl}} = proplists:lookup("sizes", get_config()),
+		    Dbl;
+		{base, ["*"|_]} ->
+		    {_, {_, P}} = proplists:lookup("arch", get_config()),
+		    P
 	    end;
-	{base, ["float", _, _]}->
-	    {_, {_, _, _, _, Fl, _}} = proplists:lookup("sizes", get_config()),
-	    Fl;
-	{base, ["double", _, _]}->
-	    {_, {_, _, _, _, _, Dbl}} = proplists:lookup("sizes", get_config()),
-	    Dbl;
-	{base, ["*"|_]} ->
-	    {_, {_, P}} = proplists:lookup("arch", get_config()),
-	    P
+	false ->
+	    %% full referenced
+	    case string:tokens(Type, ".") of
+		["nifty", TypeName] -> 
+		    %% builtin
+		    size_of(TypeName);
+		[ModuleName, TypeName] ->
+		    Mod = list_to_atom(ModuleName),
+		    case {module, Mod}=:=code:ensure_loaded(Mod) andalso 
+			proplists:is_defined(get_types, Mod:module_info(exports)) of
+			true ->
+			    Mod:size_of(TypeName);
+			false ->
+			    undef
+		    end;
+		_ ->
+		    undef
+	    end
     end.
     
 %% @doc Returns a pointer to a memory area that is the size of a pointer
@@ -309,25 +348,27 @@ pointer() ->
     {_, Size} = proplists:get_value("arch", nifty:get_config()),
     mem_alloc(Size).
 
+referred_type(Type) ->
+    case lists:last(Type) of
+	$* -> Type++"*";
+	_ -> Type++" *"
+    end.
+
 %% @doc Returns a pointer to the specified <code>Type</code>. This function allocates memory of <b>sizeof(</b><code>Type</code><b>)</b>
--spec pointer(nonempty_string()) -> ptr() | undefined.
+-spec pointer(nonempty_string()) -> ptr() | undef.
 pointer(Type) ->
-    Types = get_types(),
-    case dict:is_key(Type, Types) of
-	true ->
-	    Size = size_of(Type),
-	    as_type(mem_alloc(Size), nifty, Type++" *");
-	false ->
-	    undefined
+    case size_of(Type) of
+	undef -> undef;
+	S -> as_type(mem_alloc(S), referred_type(Type))
     end.
 
 %% @doc Returns a pointer to the given pointer
--spec pointer_of(ptr()) -> ptr() | undefined.
+-spec pointer_of(ptr()) -> ptr() | undef.
 pointer_of({_, Type} = Ptr) ->
     pointer_of(Ptr, Type).
 
 %% @doc Returns a pointer to the <code>Value</code> with the type <code>Type</code>
--spec pointer_of(term(), string()) -> ptr() | undefined.
+-spec pointer_of(term(), string()) -> ptr() | undef.
 pointer_of(Value, Type) ->
     case string:right(Type, 1) of
 	"*" ->
@@ -339,7 +380,7 @@ pointer_of(Value, Type) ->
 		    {NAddr, _} = int_constr(Addr, Size),
 		    {NAddr, Type++"*"};
 		false ->
-		    undefined
+		    undef
 	    end;
 	_ ->
 	    %% something else
@@ -352,18 +393,18 @@ pointer_of(Value, Type) ->
 		    builtin_pointer_of(Value, T);
 		[ModuleName, T] ->
 		    case builtin_pointer_of(Value, T) of
-			undefined ->
+			undef ->
 			    %% no base type, try the module
 			    %% resolve type and try again
 			    Module = list_to_atom(ModuleName),
 			    Types = Module:get_types(),
-			    case nifty_typetable:resolve_type(T, Types) of
+			    case nifty_types:resolve_type(T, Types) of
 				undef ->
 				    %% can (right now) only be a struct
 				    Module:record_to_erlptr(Value);
 				ResT ->
 				    case builtin_pointer_of(Value, ResT) of
-					undefined ->
+					undef ->
 					    %% can (right now) only be a struct
 					    Module:record_to_erlptr(Value);
 					Ptr ->
@@ -386,19 +427,19 @@ builtin_pointer_of(Value, Type) ->
 		{base, ["double", _, _]}->
 		    double_ref(Value);
 		_ -> case size_of(Type) of
-			 undefined ->
-			     undefined;
+			 undef ->
+			     undef;
 			 Size ->
 			     case is_integer(Value) of
 				 true ->
-				     as_type(int_constr(Value, Size), nifty, Type++" *");
+				     as_type(int_constr(Value, Size), "nifty."++Type++" *");
 				 false ->
-				     undefined
+				     undef
 			     end
 		     end
 	    end;
 	false ->
-	    undefined
+	    undef
     end.
 
 int_constr(Value, Size) ->
@@ -464,12 +505,55 @@ get_config() ->
 get_env() ->
     erlang:nif_error(nif_library_not_loaded).
 
-%% @doc Casts a pointer to a <code>Type</code> of a <code>Module</code>; returns an error if the module does not specify the type
--spec as_type(ptr(), atom(), nonempty_string()) -> ptr() | undef.
-as_type({Address, _}, Module, Type) ->
-    case dict:is_key(Type, Module:get_types()) of
-	true -> 
-	    {Address, atom_to_list(Module)++"."++Type};
+%% @doc Casts a pointer to <code>Type</code>; returns <code>undef</code>
+%%  if the specified type is invalid
+-spec as_type(ptr(), nonempty_string()) -> ptr() | undef.
+as_type({Address, _} = Ptr, Type) ->
+    BaseType = case string:tokens(Type, "*") of
+		   [T] ->
+		       string:strip(T);
+		   _ -> 
+		       []
+	       end,
+    Types = get_types(),
+    case dict:is_key(BaseType, Types) of
+	true ->
+	    {Address, "nifty."++Type};
 	false ->
-	    undef
+	    case string:tokens(Type, ".") of
+		["nifty", TypeName] ->
+		    %% builtin type
+		    as_type(Ptr, TypeName);
+		[ModuleName, TypeName] ->
+		    Mod = list_to_atom(ModuleName),
+		    case {module, Mod}=:=code:ensure_loaded(Mod) andalso 
+			proplists:is_defined(get_types, Mod:module_info(exports)) of
+			true ->
+			    %% resolve and build but we are looking for the basetype
+			    %% if the base type is defined or basetype * we are allowing
+			    %% casting
+			    [RBUType] = string:tokens(TypeName, "*"),
+			    RBType = string:strip(RBUType),
+			    case nifty_types:resolve_type(RBType, Mod:get_types()) of
+				undef ->
+				    case nifty_types:resolve_type(RBType++" *", Mod:get_types()) of 
+					undef ->
+					    %% unknown type
+					    undef;
+					_ ->
+					    %% pointer to incomplete type
+					    {Address, Type}
+				    end;
+				_ ->
+				    %% pointer to complete type
+				    {Address, Type}
+			    end;
+			_ ->
+			    %% module part of the type is not a nifty module
+			    undef
+		    end;
+		_ ->
+		    %% malformed type
+		    undef
+	    end
     end.

@@ -1,10 +1,12 @@
-# Nifty - Erlang Native Interface Generator
+[![Build Status](https://travis-ci.org/parapluu/nifty.svg?branch=master)](https://travis-ci.org/parapluu/nifty)
+
+# Nifty - Erlang NIF Wrapper Generator
 
 Nifty is an interface generator that allows you to use C modules from Erlang.
 
 Webpage: [http://parapluu.github.io/nifty/]
 
-## A simple Example
+## A Simple Example
 
 Let's say we have two C files **mylib.h** and **mylib.c** which we want to use in our Erlang application:
 
@@ -27,16 +29,9 @@ fib(int n) {
 We can generate a NIF interface and use it from from Erlang with the following command:
 
 ```Erlang
-nifty_compiler:compile("mylib.h", mylib, [
-    			   {port_specs,
-    			     [{
-    						".*",
-    						"$NIF",	
-    						["mylib.c"]
-    				}]
-    		}]
-
-5 = mylib:fib(5)
+nifty:compile("mylib.h", mylib,
+              nifty_utils:add_sources(["mylib.c"], [])).
+5 = mylib:fib(5).
 ```
 
 ***compiler/3*** reads as the first argument a header or interface file and tries to generate an interface for all 

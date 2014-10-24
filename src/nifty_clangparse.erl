@@ -1,11 +1,41 @@
+%%% -------------------------------------------------------------------
+%%% Copyright (c) 2014, Andreas Löscher <andreas.loscher@it.uu.se> and
+%%%                     Konstantinos Sagonas <kostis@it.uu.se>
+%%% All rights reserved.
+%%%
+%%% This file is distributed under the Simplified BSD License.
+%%% Details can be found in the LICENSE file.
+%%% -------------------------------------------------------------------
+
 -module(nifty_clangparse).
--export([parse/1, build_vars/1]).
-
+-export([parse/1, build_type_table/2]).
 -on_load(init/0).
+-export_type([parser_output/0,
+	      func_location/0,
+	      symbol_table/0,
+	      ctype/0,
+	      types/0,
+	      type_table/0,
+	      constr_table/0]).
 
--export_type([defs/0]).
+-type path() :: string().
+-type cname() :: nonempty_string().
+-type ctype() :: nonempty_string().
+-type index() :: integer().
+-type field() :: {'field', cname(), ctype(), index()}.
+-type types() :: [ctype()].
+-type constructor_type() :: 'struct'.
+-type ctypedef() :: {'base', [string()]} |
+		    {'typedef', ctype()} |
+		    {'userdef' , [string() | {constructor_type(), nonempty_string()}]}.
+-type func_location() :: dict:dict(path(), cname()).
+-type symbol_table() :: dict:dict(cname(), {'return', ctype()} | {'argument', index(), ctype()}).
+-type type_table() :: dict:dict(ctype(), ctypedef()).
+-type constr_table() :: dict:dict({'struct' | 'typedef', cname()}, ctype() | [field()]).
+-type parser_output() :: {func_location(), symbol_table(), types(), constr_table()}.
 
--type defs() :: {dict:dict(), dict:dict(), dict:dict()}.
+-define(BASE_TYPES, ["char", "int", "float", "double", "void"]).
+-define(SPECIFIER, ["signed", "unsigned", "short", "long"]).
 
 init() -> %% loading code from jiffy
     PrivDir = case code:priv_dir(?MODULE) of
@@ -21,229 +51,180 @@ init() -> %% loading code from jiffy
 cparse(_) ->
     erlang:nif_error(nif_library_not_loaded).
 
-%% @doc Takes clang compiler arguments, and returns a list of token and a proplist of functions names with 
-%% their file locations
--spec parse([string()]) -> {{[string()],[{string(), string()}]}, Args} | {'fail', Args} when Args :: [string()].
+%% @doc Takes clang compiler arguments, and returns functions locations, symbol table, types and constructor table
+-spec parse([string()]) -> parser_output() | {error, fail}.
 parse(Args) ->
-    {cparse(Args), Args}.
-
-%% @doc Takes a list of token as produced by <code>parse/1</code> and returns type information about functions, structs
-%% and typedefs
--spec build_vars([string()]) -> defs().
-build_vars(Token) ->
-    build_vars(Token, {dict:new(), dict:new(), dict:new()}).
-
-build_vars([], Definitions) ->
-    Definitions;
-build_vars([H|T], Definitions) ->
-    {NewT, Defs} = try case H of
-			   "FUNCTION" ->
-			       build_function(T, Definitions);
-			   "STRUCT" ->
-			       build_struct(T, Definitions);
-			   "TYPEDEF" ->
-			       build_typedef(T, Definitions);
-			   _ ->
-			       io:format("r"),
-			       recover(T, Definitions)
-		       end
-		   catch
-		       _ ->
-			   io:format("r"),
-			   recover(T, Definitions)			   
-		   end,
-    build_vars(NewT, Defs).
-
-recover([], Defs) ->
-    {[], Defs};
-recover([H|T], Defs) ->
-    case H of
-	"FUNCTION" ->
-	    {[H|T], Defs};
-	"STRUCT" ->
-	    {[H|T], Defs};
-	"TYPEDEF" ->
-	    {[H|T], Defs};
-	_ ->
-	    recover(T, Defs)
+    case cparse(Args) of
+	fail ->
+	    {error, fail};
+	{FL, ST, T, CT} ->
+	    {dict:from_list(FL),
+	     dict:from_list(ST),
+	     T,
+	     dict:from_list(CT)}
     end.
 
-build_type([Type|T], {Functions, TypeDefs, Structs}) ->
-    case (string:str(Type, "<anonymous")>0) of
-	true-> 
-	    %% Placeholder for anonymous structs
-	    throw(recover);
-	    %% [_,_|RestToken] = T,
-	    %% {NT, Defs} = build_named_struct(RestToken, {Functions, TypeDefs, Structs}, string:substr(Type, 8)),
-	    %% io:format("~p~n", [string:substr(Type, 8)]),
-	    %% {NT, Defs, Type};
-	false ->
-	    case string:str(Type, "(*)") of
+%% @doc building the type table from the raw parser output
+-spec build_type_table(types(), constr_table()) -> type_table().
+build_type_table(Types, Constr) ->
+    Constr_Types = fill_constructed(Constr, dict:new()),
+    Used_Types = fill_types(Types, Constr_Types),
+    fill_type_table(Used_Types).
+
+fill_constructed(Constr, Types) ->
+    fill_constructed(dict:fetch_keys(Constr), Constr, Types).
+
+fill_constructed([], _, Types) ->
+    Types;
+fill_constructed([H|T], Constr, Types) ->
+    Updated_Types = case H of
+			{typedef, Alias} ->
+			    Type = dict:fetch(H, Constr),
+			    case is_fptr(Type) of 
+				true ->
+				    dict:store(Alias, {typedef, "void *"}, Types);
+				false ->
+				    dict:store(Alias, {typedef, Type}, Types)
+			    end;
+			{struct, Name} ->
+			    D = dict:store("struct "++Name, {userdef, [H]}, Types),
+			    dict:store("struct "++Name++" *", {userdef, ["*", H]}, D)
+		    end,
+    fill_constructed(T, Constr, Updated_Types).
+
+fill_types([], Types) ->
+    Types;
+fill_types([Type|T], Types) ->
+    fill_types(T, build_type_entry(Types, Type)).
+
+fill_type_table(Types) ->
+    fill_type_table(Types, dict:fetch_keys(Types)).
+
+fill_type_table(Types, []) -> Types;
+fill_type_table(Types, [Type|TypeNames]) ->
+    {Kind, L} = dict:fetch(Type, Types),
+    case Kind of
+	base -> fill_type_table(Types, TypeNames);
+	typedef -> fill_type_table(Types, TypeNames);
+	userdef ->
+	    [H|T] = L,
+	    case H of
+		{_,_} ->
+		    fill_type_table(Types, TypeNames);
+		_ ->
+		    case (H=:="*") orelse string:str(H, "[")>0 of
+			true ->
+			    [N|_] = T,
+			    case N of
+				{_,_} ->
+				    fill_type_table(Types, TypeNames);
+				_ ->
+				    [P|Token] = lists:reverse(string:tokens(Type, " ")),
+				    NewP = string:substr(P, 1, length(P) - length(H)),
+				    NType = string:strip(string:join(lists:reverse(Token)++[NewP], " ")),
+				    case dict:is_key(NType, Types) of 
+					true -> fill_type_table(Types, TypeNames);
+					false -> fill_type_table(dict:store(NType, {Kind, T}, Types), [NType|TypeNames])
+				    end
+			    end;
+			false -> fill_type_table(Types, TypeNames)
+		    end
+	    end
+    end.
+
+count_in_list(L, E) ->
+    count_in_list(L,E,0).
+
+count_in_list([], _, Acc) -> Acc;
+count_in_list([H|T], E, Acc) ->
+    case H =:= E of
+	true -> count_in_list(T, E, Acc+1);
+	false -> count_in_list(T, E, Acc)
+    end.
+
+
+simplify_specifiers(Specifiers) ->
+    LSpec = case count_in_list(Specifiers, "long") of
 		0 ->
-		    %% normal type
-		    {T, {Functions, TypeDefs, Structs}, Type};
-		_ ->
-		    %% function pointers default to void *
-		    {T, {Functions, TypeDefs, Structs}, "void *"}
+		    case lists:member("short", Specifiers) of
+			true -> ["short"];
+			false -> ["none"]
+		    end;
+		1 -> ["long"];
+		_ -> ["longlong"]
+	    end,
+    case count_in_list(Specifiers, "unsigned") of
+	0 -> ["signed"|LSpec];
+	_ -> ["unsigned"|LSpec]
+    end.
+
+parse_type(Token) ->
+    parse_type(Token, [], none).
+
+parse_type([], TypeDef, none) -> parse_type(["int"], TypeDef, none);
+parse_type([], TypeDef, Kind) -> {Kind, TypeDef};
+parse_type([E|T], TypeDef, Kind) ->
+    case E of
+	%% special cases
+	"struct" ->
+	    [StructName|TT] = T,
+	    parse_type(TT, [{struct, StructName}|TypeDef], userdef);
+	_ ->
+	    %% simple type
+	    case lists:member(E, ?BASE_TYPES) of
+		true -> parse_type(T, [E|simplify_specifiers(TypeDef)], base);
+		false -> 
+		    case lists:member(E, ?SPECIFIER) of
+			true -> parse_type(T, [E|TypeDef], none);
+			false -> 
+			    case ((E=:="*") or lists:member($[, E)) of
+				true ->
+				    case Kind of
+					none -> parse_type(["int"|[E|T]], TypeDef, base);
+					_ -> parse_type(T, [E|TypeDef], Kind)
+				    end;
+				false ->
+				    %% user defined type
+				    parse_type(T, [E|TypeDef], userdef)
+			    end
+		    end
 	    end
     end.
 
-build_function([FuncName|T], {Functions, TypeDefs, Structs}) ->
-    {PT, PD, Rettype} = build_rettype(T, {Functions, TypeDefs, Structs}),
-    {NT, {FD, TD, SD}, Params} = build_params(PT, PD),
-    NFD = dict:store(FuncName, {Rettype, Params}, FD),
-    {NT, {NFD, TD, SD}}.
+type_extend(Type) ->
+    type_extend(Type, []).
 
-build_rettype([Type|T], Definitions) ->
-    case string:str(Type, "__attribute__") of
-	0 -> 
-	    case string:tokens(Type, "(") of 
-		[PType, _] ->
-		    PureType = string:strip(PType),
-		    build_type([PureType|T], Definitions);
-		[_,"*"|FPtrSpec] ->
-		    %% throw away return type of inner most function type
-		    %% of the return type
-		    {FPtrType, NT} = build_fptr(FPtrSpec, T),
-		    build_type([FPtrType|NT], Definitions);
-		[PType|_] ->
-		    %% function pointer in argument list
-		    PureType = string:strip(PType),
-		    build_type([PureType|T], Definitions)
-	    end;
-	P ->
-	    NormType = string:strip(string:substr(Type, 1, P -1)),
-	    build_rettype([NormType|T], Definitions)
+type_extend([], Acc) -> Acc;
+type_extend([H|T], Acc) ->
+    case [H] of
+	"*" -> type_extend(T, Acc++" * ");
+	"[" -> type_extend(T, Acc++" [");
+	C -> type_extend(T, Acc++C)
     end.
 
-build_fptr([], _) ->
-    throw(recover);
-build_fptr([SP|R], T) ->
-    case SP of
-	"*" ->
-	    build_fptr(R, T);
-	_ ->
-	    case string:str(SP, ")") of
-		5 ->
-		    NT = build_fptr_token(T,0),
-		    {"void *", NT};
-		_ ->
-		    NT = build_fptr_token(T,length(string:tokens(SP, ","))),
-		    {"void *", NT}
-	    end
+norm_type(Type) ->
+    case string:str(Type, "[]") of
+	0 -> Type;
+	P -> string:substr(Type, 1, P-1)++"*"
     end.
 
-build_fptr_token(Token, Keep) ->
-    {NT, Params} = build_fptr_all_params(Token, []),
-    lists:nthtail(length(Params) - (3*Keep), Params) ++ NT.
+is_fptr(Type) ->
+    string:str(Type, "(")=/=0.
 
-build_fptr_all_params([], Acc) ->
-    {[], Acc};
-build_fptr_all_params([H|T], Acc) ->
-    case H of
-	"PARAMETER" ->
-	    [Name, Type|NT] = T,
-	    build_fptr_all_params(NT, Acc ++ ["PARAMETER", Name, Type]);
-	_ ->
-	    {[H|T], Acc}
-    end.
 
-build_param([Ident|T], Definitions) ->
-    case Ident of
-	"PARAMETER" ->
-	    [Name|TT] = T,
-	    {NT, Defs, Type} = build_type(TT, Definitions),
-	    {NT, Defs, {Name, Type}};
-	_ -> {[Ident|T], Definitions, stop}
-    end.
-
-build_params(T, Definitions) ->
-    {NT, Data, Params} = build_params(T, Definitions, []),
-    {NT, Data, lists:reverse(Params)}.
-
-build_params([], Definitions, Params) ->
-    {[], Definitions, Params};
-build_params(T, Definitions, Params) ->
-    {NT, Defs, Param} = build_param(T, Definitions),
-    case Param of
-	stop -> {NT, Defs, Params};
-	_ -> build_params(NT, Defs, [Param|Params])
-    end.
-
-build_field([Name|T], Definitions) ->
-    {NT, Defs, Type} = build_type(T, Definitions),
-    {NT, Defs, {Name, Type}}.
-
-build_field_save([], Definitions, _) ->
-    {[], Definitions, stop};
-build_field_save([Ident|T], Definitions, ParentName) ->
-    {_, TypeDefs, _} = Definitions,
-    case Ident of
-	"FIELD" -> 
-	    [Parent|NT] = T,
-	    case string:substr(resolve_type(strip_type_name(Parent), TypeDefs),8)=:=strip_type_name(ParentName) of
+build_type_entry(TypeTable, Type) ->
+    NType = norm_type(Type),
+    case dict:is_key(NType, TypeTable) of
+	true -> 
+	    TypeTable;
+	false->
+	    case is_fptr(NType) of
 		true ->
-		    build_field(NT, Definitions);
+		    TDef_Table = dict:store(NType, {typedef, "void *"}, TypeTable),
+		    build_type_entry(TDef_Table, "void *");
 		false ->
-		    {[Ident|T], Definitions, stop}
-	    end;
-	_ -> 
-	    {[Ident|T], Definitions, stop}
-    end.
-
-build_fields(T, Definitions, Name) ->
-    build_fields(T, Definitions, Name, []).
-
-build_fields(T, Definitions, Name, Fields) ->
-    {NT, Defs, Field} = build_field_save(T, Definitions, Name),
-    case Field of
-	stop -> 
-	    {NT, Defs, Fields};
-	_ -> 
-	    build_fields(NT, Defs, Name, [Field|Fields])
-    end.
-
-build_named_struct(T, Definitions, Name) ->
-    {NT, {Functions, TypeDefs, Structs}, Fields} = build_fields(T, Definitions, Name),
-    {NT, {Functions, TypeDefs, dict:store(Name, Fields, Structs)}}.
-
-build_anonymous_struct(T, Definitions) ->
-    {T, Definitions}.
-
-build_struct([Name|T], Definitions) ->
-    case Name of
-	[] ->
-	    %% anonymous struct
-	    build_anonymous_struct(T, Definitions);
-	_ ->
-	    build_named_struct(T, Definitions, Name)
-    end.
-
-build_typedef([Name| T], Definitions) ->
-    {NT, {Functions, TypeDefs, Structs}, Type} = build_type(T, Definitions),
-    {NT, {Functions, dict:store(Name, Type, TypeDefs), Structs}}.
-
-strip_type_name(Name) ->
-    Index = string:str(Name, "::"),
-    Temp = case Index of
-	       0 -> Name;
-	       _ -> 
-		   case string:str(Name, "struct") of
-		       1 -> "struct " ++ string:substr(Name, Index+2);
-		       _ -> string:substr(Name, Index+2)
-		   end
-	   end,
-    case string:str(Temp, "struct") of
-	12 -> string:substr(Temp, 1, 11) ++ string:substr(Temp, 19);
-	_ -> Temp
-    end.
-
-resolve_type(Name, TypeDefs) -> 
-    case dict:is_key(Name, TypeDefs) of
-	true ->
-	    [ResolvedName|_] = dict:fetch(Name, TypeDefs),
-	    resolve_type(ResolvedName, TypeDefs);
-	false ->
-	    Name
+		    Def = parse_type(string:tokens(type_extend(NType), " ")),
+		    dict:store(NType, Def, TypeTable)
+	    end
     end.
 

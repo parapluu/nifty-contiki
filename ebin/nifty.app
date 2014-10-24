@@ -10,13 +10,14 @@
 			nifty, 
 			nifty_clangparse,
 			nifty_cooja,
-			nifty_filters,
-			nifty_tags,
-			nifty_rebar,
 			nifty_compiler,
-			nifty_utils,
-			nifty_typetable,
-			nifty_remotecall]},
+			nifty_filters,
+			nifty_rebar,
+			nifty_remote,
+			nifty_remotecall,
+			nifty_tags,
+			nifty_types,
+			nifty_utils]},
 		{applications,[kernel,stdlib,compile]}
 	]
 }.

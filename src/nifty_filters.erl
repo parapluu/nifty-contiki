@@ -1,3 +1,12 @@
+%%% -------------------------------------------------------------------
+%%% Copyright (c) 2014, Andreas Löscher <andreas.loscher@it.uu.se> and
+%%%                     Konstantinos Sagonas <kostis@it.uu.se>
+%%% All rights reserved.
+%%%
+%%% This file is distributed under the Simplified BSD License.
+%%% Details can be found in the LICENSE file.
+%%% -------------------------------------------------------------------
+
 -module(nifty_filters).
 -export([raw_include/1,
 	 raw_path/1,
@@ -89,12 +98,7 @@ discard_restrict(Type) ->
 
 -spec resolved(string(), dict:dict()) -> string().
 resolved(Type, Types) ->
-    case dict:fetch(Type, Types) of
-	{typedef, RefType} -> 
-	    resolved(RefType, Types);
-	_ -> 
-	    Type
-    end.
+    nifty_types:resolve_type(Type, Types).
 
 %%% dict
 -spec fetch(dict:dict(), string()) -> term().

@@ -8,6 +8,7 @@
 	]).
 
 -define(TYPES, {{types}}).
+-define(CONSTR, {{constructors}}).
 
 get_types() -> ?TYPES.
 

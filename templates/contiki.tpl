@@ -29,7 +29,7 @@ static int send_length;
 
 {% include "nifty_lib.tpl" %}
 
-{% include "structure.tpl" %}
+{# {% include "structure.tpl" %} #}
 
 {% include "function.tpl" %}
 

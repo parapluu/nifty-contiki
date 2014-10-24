@@ -8,6 +8,6 @@
 			{% include "lib/void_type.tpl" %}
 		{% else %}
 			{% include "lib/pointer_type.tpl" %}
-		{% endif %}{% endif %}
+		{% endif %}{% endif %}{% endif %}
 	{% endwith %}
 {% endwith %}

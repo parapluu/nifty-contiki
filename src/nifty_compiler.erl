@@ -12,52 +12,91 @@
 %% contents of these files as tuple of iolists (in this order). It uses <code>CFlags</code> to parse the
 %% <code>InterfaceFile</code> and <code>Options</code> to compile it. <code>Options</code> are equivalent to
 %% rebar options.
--spec render(string(), modulename(), [string()], options()) -> {error,reason()} | renderout().
+-spec render(string(), modulename(), [string()], options()) -> {'error',reason()} | {renderout(), [nonempty_string()]}.
 render(InterfaceFile, ModuleName, CFlags, Options) ->
-    io:format("generating ~s -> ~s ~s ~n", [InterfaceFile, ModuleName++"_nif.c", ModuleName++".erl"]),
+    io:format("generating... ~n"),
     %% c parse stuff
     PathToH = InterfaceFile,
-    case nifty_clangparse:parse([PathToH|CFlags]) of
-	{fail, _} -> 
-	    {error, compile};
-	{{[],[]}, _} ->
-	    {error, empty};
-	{{Token, FuncLoc}, _} -> 
-	    {Raw_Functions, Raw_Typedefs, Raw_Structs} = nifty_clangparse:build_vars(Token),
-	    %% io:format("~p~n", [Functions]),
-	    Unsave_Functions = filter_functions(InterfaceFile, Raw_Functions, FuncLoc),
-	    {Unsave_Types, Symbols} = nifty_typetable:build({Raw_Functions, Raw_Typedefs, Raw_Structs}),
-	    {_, Types} = nifty_typetable:check_types({Unsave_Functions, Raw_Typedefs, Raw_Structs}, Unsave_Types),
-	    RenderVars = [{"module", ModuleName},
-			  {"header", InterfaceFile},
-			  {"config", Options},
-			  {"types", Types},
-			  {"symbols", Symbols},
-			  {"maxbuf", "100"},
-			  {"none", none}],
-	    {ok, COutput} = nifty_contiki_template:render(RenderVars),
-	    {ok, SOutput} = nifty_support_template:render(RenderVars),
-	    {COutput, SOutput}
+    case filelib:is_file(PathToH) andalso (not filelib:is_dir(PathToH)) of
+	false ->
+	    {error, no_file};
+	true ->
+	    case nifty_clangparse:parse([PathToH|CFlags]) of
+		{error, fail} -> 
+		    {error, compile};
+		{FuncLoc, Raw_Symbols, Raw_Types, Unsave_Constructors} -> 
+		    Constructors = check_constructors(Unsave_Constructors),
+		    Unsave_Types = nifty_clangparse:build_type_table(Raw_Types, Constructors),
+		    Types = check_types(Unsave_Types, Constructors),
+		    Unsave_Symbols = filter_symbols(InterfaceFile, Raw_Symbols, FuncLoc),
+		    {Symbols, Lost} = check_symbols(Unsave_Symbols, Types),
+		    RenderVars = [{"module", ModuleName},
+		    		  {"header", InterfaceFile},
+		    		  {"config", Options},
+		    		  {"types", Types},
+		    		  {"symbols", Symbols},
+		    		  {"constructors", Constructors},
+		    		  {"none", none}],
+		    COutput = render_with_errors(nifty_contiki_template, RenderVars),
+		    SOutput = render_with_errors(nifty_support_template, RenderVars),
+		    {{COutput, SOutput}, Lost}
+	    end
     end.
 
-filter_functions(InterfaceFile, Functions, FuncLoc) ->
-    filter_functions(filename:basename(InterfaceFile), dict:new(), Functions, FuncLoc).
+render_with_errors(Template, Vars) ->
+    try Template:render(Vars) of
+	{ok, Output} -> Output;
+	{error, Err} -> 
+	    io:format("Error during rendering of template ~p:~n~p~nPlease report the error~n", [Template, Err]),
+	    throw(nifty_render_error)
+    catch
+	ET:E ->
+	    io:format("~p:~p during rendering of temlate ~p:~nVars: ~n~p~nPlease report the error~n", [ET, E, Template, Vars]),
+	    throw(nifty_render_error)
+    end.
 
-filter_functions(_, New, _, []) ->
-    New;
-filter_functions(Ref, New, Old, [{Func, File}|T]) ->
-    Updated_New = case Ref=:=filename:basename(File) of
-		      true ->
-			  case dict:is_key(Func, Old) of
-			      true ->
-				  dict:store(Func, dict:fetch(Func, Old), New);
-			      false ->
-				  New
-			  end;
-		      false ->
-			  New
-		  end,
-    filter_functions(Ref, Updated_New, Old, T).
+
+check_types(Types, Constr) ->
+    %% somehow we have incomplete types in the type table
+    Pred = fun (Key, Value) ->
+		   case Value of
+		       {userdef, [{struct, Name}]} ->
+			   dict:is_key({struct, Name}, Constr);
+		       _ ->
+			   nifty_types:check_type(Key, Types, Constr)
+		   end
+	   end,
+    dict:filter(Pred, Types).
+
+check_constructors(Constr) ->
+    Pred = fun (_, Fields) -> length(Fields)>0 end,
+    dict:filter(Pred, Constr).
+
+filter_symbols(InterfaceFile, Symbols, FuncLoc) ->
+    BaseName = filename:basename(InterfaceFile),
+    Pred = fun (Key, _) -> filename:basename(dict:fetch(Key, FuncLoc))=:=BaseName end,
+    dict:filter(Pred, Symbols).
+
+check_symbols(Symbols, Types) ->
+    Pred = fun (_, Args) -> check_args(Args, Types) end,
+    Accml = fun(Name, Args, AccIn) -> case check_args(Args, Types) of 
+					  true -> AccIn;
+					  false -> [Name|AccIn] 
+				      end 
+	    end,
+    {dict:filter(Pred, Symbols), dict:fold(Accml, [], Symbols)}.
+
+check_args([], _) -> true;
+check_args([H|T], Types) ->
+    Type = case H of
+	       {return, Tp} -> Tp;
+	       {argument, _, Tp} -> Tp
+	   end,
+    case nifty_types:check_type(Type, Types) of
+	false -> 
+	    false;
+	true -> check_args(T, Types)
+    end.    
 
 store_files(InterfaceFile, ModuleName, Options, RenderOutput) ->
     {ok, Path} = file:get_cwd(),
@@ -77,6 +116,23 @@ store_files(_, ModuleName, _, RenderOutput, Path) ->
 fwrite_render(Path, ModuleName, Dir, FileName, Template) ->
     file:write_file(filename:join([Path, ModuleName, Dir, FileName]), [Template]).
 
+compile_module(ModuleName) ->
+    {ok, Path} = file:get_cwd(),
+    ok = file:set_cwd(filename:join([Path, ModuleName])),
+    try rebar_commands(["compile"]) of
+	_ -> file:set_cwd(Path)
+    catch
+	throw:rebar_abort ->
+	    ok = file:set_cwd(Path),
+	    fail
+    end.
+
+rebar_commands(RawArgs) ->
+    Args = nifty_rebar:parse_args(RawArgs),
+    BaseConfig = nifty_rebar:init_config(Args),
+    {BaseConfig1, Cmds} = nifty_rebar:save_options(BaseConfig, Args),
+    nifty_rebar:run(BaseConfig1, Cmds).
+
 %% @doc Generates a NIF module out of a C header file and compiles it, 
 %% generating wrapper functions for all functions present in the header file. 
 %% <code>InterfaceFile</code> specifies the header file. <code>Module</code> specifies 
@@ -94,8 +150,12 @@ compile(InterfaceFile, Module, Options) ->
     case render(InterfaceFile, ModuleName, CFlags, UCO) of
 	{error, E} -> 
 	    {error, E};
-	Output ->
-	    ok = store_files(InterfaceFile, ModuleName, UCO, Output)
+	{Output, Lost} ->
+	    ok = store_files(InterfaceFile, ModuleName, UCO, Output),
+	    case Lost of
+		[] -> ok;
+		_ -> {warning, {not_complete, Lost}}
+	    end
     end.
 
 build_env(ModuleName, Options) ->
