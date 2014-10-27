@@ -1,10 +1,9 @@
 [![Build Status](https://travis-ci.org/parapluu/nifty.svg?branch=master)](https://travis-ci.org/parapluu/nifty)
 
 # Nifty - Erlang NIF Wrapper Generator
+Nifty Contiki is an Function Call Interface Generator for Contiki. It enables calling C-Functions specified in a C-Header file to be called over the serial bus.
 
-Nifty is an interface generator that allows you to use C modules from Erlang.
-
-Webpage: [http://parapluu.github.io/nifty/]
+Nifty Contiki is a fork of [Nifty](http://parapluu.github.io/nifty/), an Erlang Native Function Interface Generator.
 
 ## A Simple Example
 
@@ -30,13 +29,14 @@ We can generate a NIF interface and use it from from Erlang with the following c
 
 ```Erlang
 nifty:compile("mylib.h", mylib,
-              nifty_utils:add_sources(["mylib.c"], [])).
+              []).
 5 = mylib:fib(5).
 ```
 
 ***compiler/3*** reads as the first argument a header or interface file and tries to generate an interface for all 
-specified functions. The second argument specifies the Erlang module the interface is about to use and the third argument is used for additional options. These option are compatible with the ones rebar uses to compile NIF modules. 
-In fact, Nifty uses rebar to compile the generated interface.
+specified functions. The second argument specifies the Erlang module the interface is about to use. The third argument is used for additional options. These option are compatible with the ones rebar uses to compile NIF modules. 
+
+In comparison to Nifty, this fork does not generate build files or compiles the generated code. The generated code can be used as part of a Contiki firmware.
 
 ## Installation
 After succesfully cloning enter the following commands
@@ -45,21 +45,11 @@ After succesfully cloning enter the following commands
 make
 ```
 
-and include Nifty in your ERL_LIBS path.
-
-## Unit Tests
-Run the following command to check that everything works correct:
-
-```
-make tests
-```
-
-Make sure, that you have included <a href="http://proper.softlab.ntua.gr/">PropEr</a> in your **ERL_LIBS** path.
+and include Nifty Contiki in your ERL_LIBS path.
 
 ## Dependencies
 + **libclang** including the header files
 + **clang** compiler
-+ **PropEr** for the unit tests
 
 ## Base Types
 
@@ -81,6 +71,6 @@ Make sure, that you have included <a href="http://proper.softlab.ntua.gr/">PropE
 + Functions using unsupported types will not be translated and a warning is returned. 
 + Variable arguments of functions (**va_list** or **...**) is not supported. If **va_list** as type is used, Nifty will print a warning. If **...** is used, then the function is translated **without** the variable arguments: **int printf(const char *format, ...)** will be translated into **printf/1**
 + The header files must be self contained which limits the usage of incomplete types. 
-+ There is currently no nice way of using arrays although **nifty:mem_alloc/1** and **nifty:mem_read/1** allow basic usage.
++ There is currently no nice way of using arrays although **nifty_cooja:alloc/3** and **nifty:read/3** allow basic usage.
 + Nifty has not been tested under Windows.
-
++ structs are not yet! supported
