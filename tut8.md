@@ -66,7 +66,7 @@ Now we can call the interface functions. In addition to the function arguments, 
 
 {% highlight erlang %}
 6> c(answer).
-{module, answer}
+{ok, answer}
 7> answer:answer(Handler, 1, 10).
 52
 {% endhighlight %}
