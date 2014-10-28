@@ -10,7 +10,7 @@ image:
 
 Here you can find all tutorials regarding nifty-contiki:
 
-+ [Intall]({{ site.url }}/install)
++ [Install]({{ site.url }}/install)
 + Nifty
   + [First Steps]({{ site.url }}/tutorial1)
   + [Compiling]({{ site.url }}/tutorial2)
