@@ -39,5 +39,5 @@ The currently running Cooja simulation can be shut down with:
 This will return `not_running`, `ok`, or `fail`, depending on the state of Cooja and the return value.
 
 
-| <a  href="{{ site.url }}/tutorial4">Previous Tutorial</a> | <a  href="{{ site.url }}/tutorial6">Next Tutorial</a> |
-|-----------------------------------------------------------|-------------------------------------------------------|
+| <a  href="{{ site.url }}/tutorial6">Next Tutorial</a> |
+|-------------------------------------------------------|
