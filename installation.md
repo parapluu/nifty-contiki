@@ -41,12 +41,3 @@ make
 {% endhighlight %}
 
 Now include Nifty in your ERL_LIBS path and you are ready to go.
-
-## Unit Tests
-Make sure, that you have included <a href="http://proper.softlab.ntua.gr/">PropEr</a> in your **ERL_LIBS** path.
-
-Run the following command to check that everything works correct:
-
-{% highlight bash %}
-make tests
-{% endhighlight %}
