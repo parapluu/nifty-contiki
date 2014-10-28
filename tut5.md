@@ -20,6 +20,14 @@ The first parameter should point to the directory containing Cooja. This is typi
 
 The third parameter is a list of options. The currently supported opions are `debug` and `gui`. `debug` will print additional debugging information, like the Cooja command line output. `gui` will run Cooja with the gui allowing you to observe and manipulate the simulation by hand. 
 
+## Important!
+Currently Cooja requires a ScriptRunner plugin in nogui mode. In order to use the Socket Control plugin you need to run Cooja in GUI mode:
+
+{% highlight erlang %}
+1> nifty_cooja:start("$CONTIKI/tools/cooja",
+                     "path/to/simfile.csc", [gui]).
+{% endhighlight %}
+
 # State
 You can get the state of Cooja by running:
 
