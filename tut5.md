@@ -24,7 +24,7 @@ The third parameter is a list of options. The currently supported opions are `de
 You can get the state of Cooja by running:
 
 {% highlight erlang %}
-1> nifty_cooja:state().
+2> nifty_cooja:state().
 {% endhighlight %}
 
 which will return `{running, Handler}`, `not_running`, `ok`, or `fail`. `ok` and `fail` is returned once! after Cooja has been exited (or crashed), while the other two indicate a running or not running simulator. `{running, Handler}` also gives you the handler to the currently running Cooja simulation.
@@ -33,11 +33,11 @@ which will return `{running, Handler}`, `not_running`, `ok`, or `fail`. `ok` and
 The currently running Cooja simulation can be shut down with:
 
 {% highlight erlang %}
-1> nifty_cooja:exit().
+3> nifty_cooja:exit().
 {% endhighlight %}
 
 This will return `not_running`, `ok`, or `fail`, depending on the state of Cooja and the return value.
 
 
-| <a  href="{{ site.url }}/tutorial4">Previous Tutorial</a> | <a  href="{{ site.url }}/files/tut5.tar.gz">Tutorial Files</a> | <a  href="{{ site.url }}/tutorial6">Next Tutorial</a> |
-|-----------------------------------------------------------|----------------------------------------------------------------|--------------------------------------------------------------|
+| <a  href="{{ site.url }}/tutorial4">Previous Tutorial</a> | <a  href="{{ site.url }}/tutorial6">Next Tutorial</a> |
+|-----------------------------------------------------------|-------------------------------------------------------|
