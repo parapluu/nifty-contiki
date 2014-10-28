@@ -1,0 +1,289 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>Module nifty_cooja</title>
+<link rel="stylesheet" type="text/css" href="stylesheet.css" title="EDoc">
+</head>
+<body bgcolor="white">
+<div class="navbar"><a name="#navbar_top"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>
+<hr>
+
+<h1>Module nifty_cooja</h1>
+<ul class="index"><li><a href="#index">Function Index</a></li><li><a href="#functions">Function Details</a></li></ul>
+
+
+<h2><a name="index">Function Index</a></h2>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#alloc-3">alloc/3</a></td><td></td></tr>
+<tr><td valign="top"><a href="#alloc-4">alloc/4</a></td><td></td></tr>
+<tr><td valign="top"><a href="#duty_cycle-2">duty_cycle/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#exit-0">exit/0</a></td><td></td></tr>
+<tr><td valign="top"><a href="#free-3">free/3</a></td><td></td></tr>
+<tr><td valign="top"><a href="#get_last_event-2">get_last_event/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#is_running-1">is_running/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#mote_add-2">mote_add/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#mote_del-2">mote_del/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#mote_get_pos-2">mote_get_pos/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#mote_hw_events-2">mote_hw_events/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#mote_hw_listen-2">mote_hw_listen/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#mote_hw_unlisten-2">mote_hw_unlisten/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#mote_listen-2">mote_listen/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#mote_read-2">mote_read/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#mote_read_pushback-3">mote_read_pushback/3</a></td><td></td></tr>
+<tr><td valign="top"><a href="#mote_read_s-2">mote_read_s/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#mote_set_pos-3">mote_set_pos/3</a></td><td></td></tr>
+<tr><td valign="top"><a href="#mote_types-1">mote_types/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#mote_unlisten-2">mote_unlisten/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#mote_write-3">mote_write/3</a></td><td></td></tr>
+<tr><td valign="top"><a href="#motes-1">motes/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#msg_wait-2">msg_wait/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#next_event-2">next_event/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#quit_cooja-1">quit_cooja/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#radio_get_config-1">radio_get_config/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#radio_set_config-2">radio_set_config/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#read-4">read/4</a></td><td></td></tr>
+<tr><td valign="top"><a href="#set_random_seed-2">set_random_seed/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#set_speed_limit-2">set_speed_limit/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#simulation_step-2">simulation_step/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#simulation_step_ms-1">simulation_step_ms/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#simulation_time-1">simulation_time/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#simulation_time_ms-1">simulation_time_ms/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#start-2">start/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#start-3">start/3</a></td><td></td></tr>
+<tr><td valign="top"><a href="#start_simulation-1">start_simulation/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#state-0">state/0</a></td><td></td></tr>
+<tr><td valign="top"><a href="#stop_simulation-1">stop_simulation/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#wait_for_msg-4">wait_for_msg/4</a></td><td></td></tr>
+<tr><td valign="top"><a href="#wait_for_result-2">wait_for_result/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#wait_for_result-3">wait_for_result/3</a></td><td></td></tr>
+<tr><td valign="top"><a href="#write-3">write/3</a></td><td></td></tr>
+<tr><td valign="top"><a href="#write-4">write/4</a></td><td></td></tr>
+</table>
+
+<h2><a name="functions">Function Details</a></h2>
+
+<h3 class="function"><a name="alloc-3">alloc/3</a></h3>
+<div class="spec">
+<p><tt>alloc(Handler, Mote, Size) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="alloc-4">alloc/4</a></h3>
+<div class="spec">
+<p><tt>alloc(Handler, Mote, Size, Wait) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="duty_cycle-2">duty_cycle/2</a></h3>
+<div class="spec">
+<p><tt>duty_cycle(Events, SimTime) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="exit-0">exit/0</a></h3>
+<div class="spec">
+<p><tt>exit() -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="free-3">free/3</a></h3>
+<div class="spec">
+<p><tt>free(Handler, Mote, Size) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="get_last_event-2">get_last_event/2</a></h3>
+<div class="spec">
+<p><tt>get_last_event(Handler, Id) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="is_running-1">is_running/1</a></h3>
+<div class="spec">
+<p><tt>is_running(Handler) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="mote_add-2">mote_add/2</a></h3>
+<div class="spec">
+<p><tt>mote_add(Handler, Type) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="mote_del-2">mote_del/2</a></h3>
+<div class="spec">
+<p><tt>mote_del(Handler, Id) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="mote_get_pos-2">mote_get_pos/2</a></h3>
+<div class="spec">
+<p><tt>mote_get_pos(Handler, Id) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="mote_hw_events-2">mote_hw_events/2</a></h3>
+<div class="spec">
+<p><tt>mote_hw_events(Handler, Mote) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="mote_hw_listen-2">mote_hw_listen/2</a></h3>
+<div class="spec">
+<p><tt>mote_hw_listen(Handler, Mote) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="mote_hw_unlisten-2">mote_hw_unlisten/2</a></h3>
+<div class="spec">
+<p><tt>mote_hw_unlisten(Handler, Mote) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="mote_listen-2">mote_listen/2</a></h3>
+<div class="spec">
+<p><tt>mote_listen(Handler, Mote) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="mote_read-2">mote_read/2</a></h3>
+<div class="spec">
+<p><tt>mote_read(Handler, Mote) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="mote_read_pushback-3">mote_read_pushback/3</a></h3>
+<div class="spec">
+<p><tt>mote_read_pushback(Handler, Mote, Data) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="mote_read_s-2">mote_read_s/2</a></h3>
+<div class="spec">
+<p><tt>mote_read_s(Handler, Mote) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="mote_set_pos-3">mote_set_pos/3</a></h3>
+<div class="spec">
+<p><tt>mote_set_pos(Handler, Id, Pos) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="mote_types-1">mote_types/1</a></h3>
+<div class="spec">
+<p><tt>mote_types(Handler) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="mote_unlisten-2">mote_unlisten/2</a></h3>
+<div class="spec">
+<p><tt>mote_unlisten(Handler, Mote) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="mote_write-3">mote_write/3</a></h3>
+<div class="spec">
+<p><tt>mote_write(Handler, Mote, Data) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="motes-1">motes/1</a></h3>
+<div class="spec">
+<p><tt>motes(Handler) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="msg_wait-2">msg_wait/2</a></h3>
+<div class="spec">
+<p><tt>msg_wait(Handler, Msg) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="next_event-2">next_event/2</a></h3>
+<div class="spec">
+<p><tt>next_event(Handler, Mote) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="quit_cooja-1">quit_cooja/1</a></h3>
+<div class="spec">
+<p><tt>quit_cooja(Handler) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="radio_get_config-1">radio_get_config/1</a></h3>
+<div class="spec">
+<p><tt>radio_get_config(Handler) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="radio_set_config-2">radio_set_config/2</a></h3>
+<div class="spec">
+<p><tt>radio_set_config(Handler, X2) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="read-4">read/4</a></h3>
+<div class="spec">
+<p><tt>read(Handler, Mote, Ptr, Size) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="set_random_seed-2">set_random_seed/2</a></h3>
+<div class="spec">
+<p><tt>set_random_seed(Handler, Seed) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="set_speed_limit-2">set_speed_limit/2</a></h3>
+<div class="spec">
+<p><tt>set_speed_limit(Handler, SpeedLimit) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="simulation_step-2">simulation_step/2</a></h3>
+<div class="spec">
+<p><tt>simulation_step(Handler, Time) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="simulation_step_ms-1">simulation_step_ms/1</a></h3>
+<div class="spec">
+<p><tt>simulation_step_ms(Handler) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="simulation_time-1">simulation_time/1</a></h3>
+<div class="spec">
+<p><tt>simulation_time(Handler) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="simulation_time_ms-1">simulation_time_ms/1</a></h3>
+<div class="spec">
+<p><tt>simulation_time_ms(Handler) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="start-2">start/2</a></h3>
+<div class="spec">
+<p><tt>start(CoojaPath, Simfile) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="start-3">start/3</a></h3>
+<div class="spec">
+<p><tt>start(CoojaPath, Simfile, Options) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="start_simulation-1">start_simulation/1</a></h3>
+<div class="spec">
+<p><tt>start_simulation(Handler) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="state-0">state/0</a></h3>
+<div class="spec">
+<p><tt>state() -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="stop_simulation-1">stop_simulation/1</a></h3>
+<div class="spec">
+<p><tt>stop_simulation(Handler) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="wait_for_msg-4">wait_for_msg/4</a></h3>
+<div class="spec">
+<p><tt>wait_for_msg(Handler, Receiver, Timeout, Msg) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="wait_for_result-2">wait_for_result/2</a></h3>
+<div class="spec">
+<p><tt>wait_for_result(Handler, Mote) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="wait_for_result-3">wait_for_result/3</a></h3>
+<div class="spec">
+<p><tt>wait_for_result(Handler, Mote, T) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="write-3">write/3</a></h3>
+<div class="spec">
+<p><tt>write(Handler, Mote, Data) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="write-4">write/4</a></h3>
+<div class="spec">
+<p><tt>write(Handler, Mote, Ptr, Data) -&gt; any()</tt></p>
+</div>
+<hr>
+
+<div class="navbar"><a name="#navbar_bottom"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>
+<p><i>Generated by EDoc, Oct 28 2014, 15:04:07.</i></p>
+</body>
+</html>
