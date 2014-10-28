@@ -10,12 +10,12 @@ disqus_shortname:
 owner:
   name:           Nifty
   avatar:         avatar.png
-  bio:            "Nifty - NIF interface generator"
+  bio:            "Nifty Contiki - Contiki Interface Generator"
   email:         
   # Social networking links are used in author-bio sidebar. Update and remove as you like.
   twitter:        
   facebook:       
-  github:         parapluu/nifty
+  github:         parapluu/nifty-contiki
   stackoverflow: 
   linkedin:       
   instagram:      
@@ -46,7 +46,7 @@ links:
   - title: Tutorials
     url: /tutorial
   - title: GitHub
-    url: https://github.com/parapluu/nifty
+    url: https://github.com/parapluu/nifty-contiki
     external: true
 #  - title: Theme Setup
 #    url: /theme-setup
