@@ -95,5 +95,5 @@ Events can be read using the `next_event/2` function:
 
 `next_event/2` will return `fail` if no event has occured yet.
 
-| <a  href="{{ site.url }}/tutorial7">Previous Tutorial</a> | <a  href="{{ site.url }}/files/tut8.tar.gz">Tutorial Files</a> | <a  href="{{ site.url }}/tutorial9">Next Tutorial</a> |
-|-----------------------------------------------------------|----------------------------------------------------------------|--------------------------------------------------------------|
+| [Previous Tutorial](tutorial7) | [Tutorial Files](files/tut8.tar.gz) | [Next Tutorial](tutorial9) |
+|--------------------------------|-------------------------------------|----------------------------|
