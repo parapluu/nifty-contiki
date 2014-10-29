@@ -102,11 +102,11 @@ setup() ->
 answer_property(Motes) ->
     ?FORALL({I, Mote}, {integer(), oneof(Motes)},
             begin
-		Handler = setup(),
-		R = mote_answer:answer(Handler, Mote, I) =:= I+42,
-		nifty_cooja:exit(),
-		timer:sleep(100),
-		R
+        		Handler = setup(),
+		        R = mote_answer:answer(Handler, Mote, I) =:= I+42,
+        		nifty_cooja:exit(),
+        		timer:sleep(100),
+        		R
             end).
 
 test_func() ->
@@ -122,9 +122,9 @@ answer_test_() ->
 We can now run the test:
 
 {% highlight erlang %}
-6> nifty:compile("answer.h", mote_answer, []).
+6> c(tut).
 {ok, tut}
-7> tut:compile().
+7> nifty:compile("answer.h", mote_answer, []).
 generating...
 ok
 8> c(mote_answer).
