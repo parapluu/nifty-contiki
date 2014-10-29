@@ -11,7 +11,6 @@ tags: [about,tutorial]
 + Erlang OTP >17.0 
 + **libclang** including the header files (libclang-dev)
 + **clang** compiler
-+ <a href="http://proper.softlab.ntua.gr/">**PropEr**</a> for the unit tests
 
 In Ubuntu you can install the dependencies with this command:
 
