@@ -78,7 +78,9 @@ start_node() ->
 start(CoojaPath, Simfile) ->
     start(CoojaPath, Simfile, []).
 
-start(CoojaPath, Simfile, Options) ->
+start(RawCoojaPath, RawSimfile, Options) ->
+    CoojaPath = nifty_utils:expand(RawCoojaPath),
+    Simfile = nifty_utils:expand(RawSimfile),
     {ok, OldPath} = file:get_cwd(),
     Return = case start_node() of
 		 ok ->
