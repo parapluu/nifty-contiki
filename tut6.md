@@ -76,5 +76,5 @@ ok
 
 Currently only the UDGM radio offers these kind of option.
 
-| <a  href="{{ site.url }}/tutorial5">Previous Tutorial</a> |  <a  href="{{ site.url }}/tutorial7">Next Tutorial</a> |
-|-----------------------------------------------------------|--------------------------------------------------------|
+| [Previous Tutorial](../tutorial5) | [Next Tutorial](../tutorial7) |
+|-----------------------------------|-------------------------------|

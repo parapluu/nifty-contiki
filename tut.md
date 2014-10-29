@@ -10,9 +10,10 @@ image:
 
 Here you can find all tutorials regarding nifty-contiki:
 
-+ [Install]({{ site.url }}/install)
-+ [Starting Cooja]({{ site.url }}/tutorial5)
-+ [Controlling The Simulations]({{ site.url }}/tutorial6)
-+ [Controlling The Motes]({{ site.url }}/tutorial7)
-+ [Cooja And Nifty]({{ site.url }}/tutorial8)
-+ [Troubleshooting]({{ site.url }}/tutorial_trouble)
++ [Install](../install)
++ [Starting Cooja](../tutorial5)
++ [Controlling The Simulations](../tutorial6)
++ [Controlling The Motes](../tutorial7)
++ [Cooja And Nifty](../tutorial8)
++ [Testing With Proper](../tutorial9)
++ [Troubleshooting](../tutorial_trouble)

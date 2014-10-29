@@ -91,5 +91,6 @@ ok
  {...}|...]
 {% endhighlight %}
 
-| <a  href="{{ site.url }}/tutorial6">Previous Tutorial</a> | <a  href="{{ site.url }}/tutorial8">Next Tutorial</a> |
-|-----------------------------------------------------------|-------------------------------------------------------|
+
+| [Previous Tutorial](../tutorial6) | [Next Tutorial](../tutorial8) |
+|-----------------------------------|-------------------------------|
