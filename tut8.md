@@ -8,7 +8,7 @@ image:
   feature: nifty_trouble.png
 ---
 
-[**Files For This Tutorial**]({{ site.url }}/files/tut8.tar.gz)
+[**Files For This Tutorial**](../files/tut8.tar.gz)
 
 # Tutorial
 This tutorial will guide you through the basic ussage of Nifty in combination with Cooja. We assume, that we have a C library on our nodes that we want to interface with. The header file `answer.h` looks as following:
