@@ -8,7 +8,7 @@ tags: [about,tutorial]
 ---
 
 ## Dependencies
-+ Erlang OTP 17.0 (if you are using an older version, you can use an <a href="https://github.com/parapluu/nifty/archive/pre-otp-17.tar.gz">old version of Nifty</a>)
++ Erlang OTP >17.0 
 + **libclang** including the header files (libclang-dev)
 + **clang** compiler
 + <a href="http://proper.softlab.ntua.gr/">**PropEr**</a> for the unit tests
