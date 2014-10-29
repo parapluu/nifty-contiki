@@ -73,15 +73,19 @@ read_mem(char* stream) {
 static int
 nifty_sizeof(char* stream) {
   char* typename = stream;
-  if (!(strcmp((const char*)typename, "const uint8_t"))) {
-    return snprintf(nifty_buffer, 100, SIZEOF_FORMAT, sizeof(const uint8_t));
+{% if not config|small_size %}
+{% with type_keys=types|fetch_keys %}
+	{% for type in type_keys %}
+		{% with kind=types|fetch:type|getNth:1 %}
+			{% if kind=="base" or kind=="userdef" or kind=="typedef" %}
+  if (!(strcmp((const char*)typename, "{{type|discard_restrict}}"))) {
+    return snprintf(nifty_buffer, 100, SIZEOF_FORMAT, sizeof({{type|discard_restrict}}));
   }
-  if (!(strcmp((const char*)typename, "const uint8_t *"))) {
-    return snprintf(nifty_buffer, 100, SIZEOF_FORMAT, sizeof(const uint8_t *));
-  }
-  if (!(strcmp((const char*)typename, "uip_ipaddr_t *"))) {
-    return snprintf(nifty_buffer, 100, SIZEOF_FORMAT, sizeof(uip_ipaddr_t *));
-  }
+			{% endif %}
+		{% endwith%}
+	{% endfor %}
+{% endwith %}
+{% endif %}
   return snprintf(nifty_buffer, 100, "undef");
 }
 

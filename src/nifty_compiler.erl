@@ -45,6 +45,7 @@ render(InterfaceFile, ModuleName, CFlags, Options) ->
 		    		  {"types", Types},
 		    		  {"symbols", Symbols},
 		    		  {"constructors", Constructors},
+				  {"maxbuf", 100},
 		    		  {"none", none}],
 		    COutput = render_with_errors(nifty_contiki_template, RenderVars),
 		    SOutput = render_with_errors(nifty_support_template, RenderVars),
@@ -118,9 +119,9 @@ store_files(_, ModuleName, _, RenderOutput, Path) ->
 	     _ -> fail
 	 end,
     {ContikiOutput, SupportOutput} = RenderOutput,
-    ok = fwrite_render(Path, ModuleName, ".", "contiki_app.c", ContikiOutput),
-    ok = fwrite_render(Path, ModuleName, ".", ModuleName++".erl", SupportOutput),
-    ok = erl_tidy:file(filename:join([Path, ModuleName, ".", ModuleName++".erl"])).
+    ok = fwrite_render(Path, ".", ".", "contiki_app.c", ContikiOutput),
+    ok = fwrite_render(Path, ".", ".", ModuleName++".erl", SupportOutput),
+    ok = erl_tidy:file(filename:join([Path, ".", ".", ModuleName++".erl"])).
 
 fwrite_render(Path, ModuleName, Dir, FileName, Template) ->
     file:write_file(filename:join([Path, ModuleName, Dir, FileName]), [Template]).
