@@ -1,7 +1,7 @@
 ---
 layout: page
 permalink: /tutorial5/
-title:  "Tutorial 5: Starting Cooja"
+title:  "Tutorial 1: Starting Cooja"
 date:   2014-04-04 11:55:46
 tags: [tutorial]
 image:
@@ -16,9 +16,9 @@ Nifty provides the `nifty_cooja` module to give you access to Cooja's functional
                      "path/to/simfile.csc", []).
 {% endhighlight %}
 
-The first parameter should point to the directory containing Cooja. This is typically in the `tools/cooja` directory of your Contiki distribution. The second parameter should point to the simulation you want to start Cooja with. In order to be able to control Cooja from Erlang, make sure to have the `Socket Control` plugin enabled in the used simulation. The return value is either `{handler, Handler}` in case of success, or fail if something went wrong.  `Handler` is used to communicate with Cooja and is used for almost all functions in `nifty_cooja`
+The first parameter should point to the directory containing Cooja. This is typically in the `tools/cooja` directory of your Contiki distribution. The second parameter should point to the simulation you want to start Cooja with. In order to be able to control Cooja from Erlang, make sure to have the `Socket Control` plugin enabled in the used simulation. The return value is either a simulation handler in case of success, or `fail` if something went wrong.  The handler is used to communicate with Cooja and is used for almost all functions in `nifty_cooja`
 
-The third parameter is a list of options. The currently supported opions are `debug` and `gui`. `debug` will print additional debugging information, like the Cooja command line output. `gui` will run Cooja with the gui allowing you to observe and manipulate the simulation by hand. 
+The optional third parameter is a list of options. The currently supported opions are `debug` and `gui`. `debug` will print additional debugging information, like the Cooja command line output. `gui` will run Cooja with the gui allowing you to observe and manipulate the simulation by hand. 
 
 ## Important!
 Currently Cooja requires a ScriptRunner plugin in nogui mode. In order to use the Socket Control plugin you need to run Cooja in GUI mode:

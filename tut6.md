@@ -1,7 +1,7 @@
 ---
 layout: page
 permalink: /tutorial6/
-title:  "Tutorial 6: Controlling The Simulation"
+title:  "Tutorial 2: Controlling The Simulation"
 date:   2014-04-04 11:55:46
 tags: [tutorial]
 image:

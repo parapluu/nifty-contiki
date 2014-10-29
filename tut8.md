@@ -1,7 +1,7 @@
 ---
 layout: page
 permalink: /tutorial8/
-title:  "Tutorial 8: Cooja And Nifty"
+title:  "Tutorial 4: Cooja And Nifty"
 date:   2014-04-04 11:55:46
 tags: [tutorial]
 image:
@@ -30,11 +30,11 @@ answer(int n) {
 We start creating an interface using Nifty:
 
 {% highlight erlang %}
-1> nifty:compile("answer.h", answer, []).
+1> nifty:compile("answer.h", mote_answer, []).
 ok
 {% endhighlight %}
 
-This will create the files `answer.erl` and `contiki_app.c`. `answer.erl` contains the supprt library that is required to operate the interface. `contiki_app.c` contains a Contiki application that operates the interface in the Contiki firmware.
+This will create the files `mote_answer.erl` and `contiki_app.c`. `mote_answer.erl` contains the supprt library that is required to operate the interface. `contiki_app.c` contains a Contiki application that operates the interface in the Contiki firmware.
 
 ## Compiling the firmware
 When we compile the firmware, it is important to include the created `contiki_app.c` and the library sources `answer.c`. A Makefile coulde look like this:
@@ -52,13 +52,13 @@ We need to create a simulation containing nodes with the firmware using the inte
 Now we can start the simulation and call the functions. We need to subscribe to the motes serial line and wait for it to be initialized. Nifty provides the function `wait_for_msg/4` which waits for a messages on a given mote. The third argument is a timeout and the function will return `false` if it runs out. The message can be any regular expression. If it is possible to match the message against the mote output, the function returns `true`:
 
 {% highlight erlang %}
-2> {_, Handler} = nifty_cooja:start("$CONTIKI/tools/cooja", "answer_sim.csc", []).
-{handler, <0.33.0>}
+2> Handler = nifty_cooja:start("$CONTIKI/tools/cooja", "$PWD/simulation.csc").
+{handler, <7212.2.0>}
 3> Motes = nifty_cooja:motes(Handler).
 [1]
 4> nifty_cooja:mote_listen(Handler, 1).
 ok
-5> nifty_cooja:wait_for_msg(Handler, 1, 1000, "Starting 'Process answer'\n").
+5> nifty_cooja:wait_for_msg(Handler, 1, 1000, "Starting 'Process mote_answer'\n").
 true
 {% endhighlight %}
 
@@ -95,5 +95,5 @@ Events can be read using the `next_event/2` function:
 
 `next_event/2` will return `fail` if no event has occured yet.
 
-| <a  href="{{ site.url }}/tutorial7">Previous Tutorial</a> | <a  href="{{ site.url }}/files/tut8.tar.gz">Tutorial Files</a> | <a  href="{{ site.url }}/tutorial_trouble">Next Tutorial</a> |
+| <a  href="{{ site.url }}/tutorial7">Previous Tutorial</a> | <a  href="{{ site.url }}/files/tut8.tar.gz">Tutorial Files</a> | <a  href="{{ site.url }}/tutorial9">Next Tutorial</a> |
 |-----------------------------------------------------------|----------------------------------------------------------------|--------------------------------------------------------------|

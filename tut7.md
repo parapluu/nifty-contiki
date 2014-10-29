@@ -1,7 +1,7 @@
 ---
 layout: page
 permalink: /tutorial7/
-title:  "Tutorial 7: Controlling The Motes"
+title:  "Tutorial 3: Controlling The Motes"
 date:   2014-04-04 11:55:46
 tags: [tutorial]
 image:
