@@ -95,5 +95,5 @@ Events can be read using the `next_event/2` function:
 
 `next_event/2` will return `fail` if no event has occured yet.
 
-| [Previous Tutorial](tutorial7) | [Tutorial Files](files/tut8.tar.gz) | [Next Tutorial](tutorial9) |
-|--------------------------------|-------------------------------------|----------------------------|
+| [Previous Tutorial](../tutorial7) | [Tutorial Files](../files/tut8.tar.gz) | [Next Tutorial](../tutorial9) |
+|-----------------------------------|----------------------------------------|-------------------------------|
