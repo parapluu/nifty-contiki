@@ -113,11 +113,6 @@ store_files(InterfaceFile, ModuleName, Options, RenderOutput) ->
     store_files(InterfaceFile, ModuleName, Options, RenderOutput, Path).
 
 store_files(_, ModuleName, _, RenderOutput, Path) ->
-    ok = case file:make_dir(filename:join([Path,ModuleName])) of
-	     ok -> ok;
-	     {error,eexist} -> ok;
-	     _ -> fail
-	 end,
     {ContikiOutput, SupportOutput} = RenderOutput,
     ok = fwrite_render(Path, ".", ".", "contiki_app.c", ContikiOutput),
     ok = fwrite_render(Path, ".", ".", ModuleName++".erl", SupportOutput),
