@@ -16,6 +16,7 @@ import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.JLabel;
 
+//import org.apache.log4j.Logger;
 import org.contikios.cooja.ClassDescription;
 import org.contikios.cooja.Cooja;
 import org.contikios.cooja.PluginType;
@@ -29,7 +30,7 @@ import com.ericsson.otp.erlang.OtpSelf;
 
 @SuppressWarnings("serial")
 @ClassDescription("Contiki Socket Control")
-@PluginType(PluginType.SIM_PLUGIN)
+@PluginType(PluginType.SIM_CONTROL_PLUGIN)
 public class SocketControlPlugin extends VisPlugin {
 	//private static Logger logger = Logger.getLogger(SocketControlPlugin.class);
 	private final static int LABEL_WIDTH = 100;

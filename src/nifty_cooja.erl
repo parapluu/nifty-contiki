@@ -39,7 +39,6 @@
 	 mote_hw_listen/2,
 	 mote_hw_unlisten/2,
 	 mote_hw_events/2,
-	 mote_read_pushback/3,
 	 mote_read/2,
 	 mote_read_s/2,
 	 msg_wait/2,
@@ -54,10 +53,13 @@
 	 %% higher level
 	 wait_for_result/2,
 	 wait_for_result/3,
+	 wait_for_msg/3,
 	 wait_for_msg/4,
 	 next_event/2,
 	 duty_cycle/2
 	]).
+
+-define(STEP_SIZE, 100).
 
 start_node() ->
     [] = os:cmd("epmd -daemon"),
@@ -244,7 +246,7 @@ quit_cooja(Handler) ->
     Handler ! {self(), quit_cooja},
     receive
 	ok -> ok
-    end.    
+    end.
 
 start_simulation(Handler) ->
     Handler ! {self(), start_simulation},
@@ -386,12 +388,6 @@ mote_hw_events(Handler, Mote) ->
 	Rsp -> Rsp
     end.
 
-mote_read_pushback(Handler, Mote, Data) ->
-    Handler ! {self(), mote_read_pushback, {Mote, Data}},
-    receive
-	ok -> ok
-    end.
-
 mote_read(Handler, Mote) ->
     Handler ! {self(), mote_read, {Mote}},
     receive
@@ -426,10 +422,8 @@ next_event(Handler, Mote) ->
 	    fail;
 	badid ->
 	    badid;
-	updated ->
-	    next_event(Handler, Mote);
 	no_event ->
-	    ok = simulation_step_ms(Handler),
+	    ok = simulation_step(Handler, ?STEP_SIZE),
 	    next_event(Handler, Mote);
 	E ->
 	    E
@@ -438,70 +432,53 @@ next_event(Handler, Mote) ->
 wait_for_result(Handler, Mote) ->
     wait_for_result(Handler, Mote, 1000).
 
+wait_for_result(_,_,T) when T<0 -> throw(timeout);
 wait_for_result(Handler, Mote, T) ->
-    wait_for_result(Handler, Mote, T, "").
-
-wait_for_result(_,_,-1,_) -> throw(timeout);
-wait_for_result(Handler, Mote, T, Acc) ->
     case state() of
 	{running, _} ->
-	    S = mote_read(Handler, Mote),
-	    RAW_NS = Acc++S,
-	    %% get rid of events
-	    NS = re:replace(RAW_NS, "EVENT:[^\n]*\n", "", [{return, list}, global]),
-	    case re:run(NS, "DEBUG[^\n]*\n") of
-		{match, [{Start,Length}]} ->
-		    ok = simulation_step_ms(Handler),
-		    io:format("<<~p>>~n", [string:substr(NS, Start+1, Length)]),
-		    RS = re:replace(NS, "DEBUG[^\n]*\n", "", [{return, list}]),
-		    wait_for_result(Handler, Mote, T-1, RS);
-		_ ->
-		    case re:run(NS, ".*\n") of
-			{match, [{Start, Length}]} ->
-			    %% get one message
-			    CRCS = string:substr(NS, Start+1, Length),
-			    PB = string:substr(NS, Start+Length+1),
-			    case PB of
-				[] -> ok;
-				_ ->
-				    %% push back the remaining message
-				    io:format("Pushback ~p of ~p ~n", [PB, NS]), 
-				    mote_read_pushback(Handler, Mote, string:substr(NS, Start+Length+1))
-			    end,
-			    CRCS;
-			nomatch ->
-			    ok = simulation_step_ms(Handler),
-			    wait_for_result(Handler, Mote, T-1, NS)
+	    case mote_read(Handler, Mote) of
+		"" ->
+		    ok = simulation_step(Handler, ?STEP_SIZE),
+		    wait_for_result(Handler, Mote, T-?STEP_SIZE);
+		S ->
+		    case re:run(S, "DEBUG[^\n]*\n") of
+			{match, [{_,_}]} ->
+			    ok = simulation_step(Handler, ?STEP_SIZE),
+			    io:format("<<~p>>~n", [S]),
+			    wait_for_result(Handler, Mote, T-?STEP_SIZE);
+			_ ->
+			    S
 		    end
 	    end;
-	_ -> 
+	_ ->
 	    undef
     end.
 
-wait_for_msg(Handler, Receiver, Timeout, Msg) ->
-    wait_for_msg(Handler, Receiver, Timeout*500, Msg, "").
+wait_for_msg(Handler, Mote, Msg) ->
+    wait_for_msg(Handler, Mote, 1000, Msg).
 
-wait_for_msg(_, _, -1, _, _) -> throw(timeout);
-wait_for_msg(Handler, Receiver, T, Msg, Acc) ->
+wait_for_msg(_, _, T, _) when T<0 -> throw(timeout);
+wait_for_msg(Handler, Mote, T, Msg) ->
     case state() of
 	{running, _} ->
-	    S = mote_read(Handler, Receiver),
-	    RAW_NS = Acc++S,
-	    %% get rid of events
-	    NS = re:replace(RAW_NS, "EVENT:[^\n]*\n", "", [{return, list}, global]),
-	    case re:run(NS, "DEBUG[^\n]*\n") of
-		{match, [{_,_}]} ->
-		    %% io:format("~s", [string:substr(NS, Start+1, Length)]),
-		    ok = simulation_step_ms(Handler),
-		    RS = re:replace(NS, "DEBUG[^\n]*\n", "", [{return, list}]),
-		    wait_for_msg(Handler, Receiver, T-1, Msg, RS);
-		_ ->
-		    case re:run(NS, Msg) of
-			{match, _} ->
-			    true;
-			nomatch ->
-			    ok = simulation_step_ms(Handler),
-			    wait_for_msg(Handler, Receiver, T-1, Msg, NS)
+	    case mote_read(Handler, Mote) of
+		"" ->
+		    ok = simulation_step(Handler, ?STEP_SIZE),
+		    wait_for_msg(Handler, Mote, T-?STEP_SIZE, Msg);
+		S ->
+		    case re:run(S, "DEBUG[^\n]*\n") of
+			{match, [{_,_}]} ->
+			    ok = simulation_step(Handler, ?STEP_SIZE),
+			    io:format("<<~p>>~n", [S]),
+			    wait_for_msg(Handler, Mote, T-?STEP_SIZE, Msg);
+			_ ->
+			    case re:run(S, Msg) of
+				{match, _} ->
+				    true;
+				nomatch ->
+				    ok = simulation_step(Handler, ?STEP_SIZE),
+				    wait_for_msg(Handler, Mote, T-?STEP_SIZE, Msg)
+			    end
 		    end
 	    end;
 	_ ->

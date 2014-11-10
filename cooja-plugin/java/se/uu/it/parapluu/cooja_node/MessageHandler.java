@@ -12,8 +12,6 @@ import java.util.LinkedList;
 import java.util.Observer;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.apache.log4j.Logger;
 import org.contikios.cooja.Mote;
@@ -46,7 +44,9 @@ public class MessageHandler extends Thread {
 	private Simulation simulation;
 	private OtpConnection conn;
 
-	private ConcurrentHashMap<Integer, String> motes_output;
+	private ConcurrentHashMap<Integer, String> motes_output_cache;
+	private ConcurrentHashMap<Integer, LinkedList<String>> motes_messages;
+	private ConcurrentHashMap<Integer, LinkedList<String>> motes_events;
 	private ConcurrentHashMap<Integer, Observer> motes_observer;
 
 	private ConcurrentHashMap<Integer, LinkedList<String[]>> motes_hw_events;
@@ -74,7 +74,9 @@ public class MessageHandler extends Thread {
 			Simulation simulation) {
 		this.conn = conn;
 		this.simulation = simulation;
-		this.motes_output = new ConcurrentHashMap<Integer, String>();
+		this.motes_output_cache = new ConcurrentHashMap<Integer, String>();
+		this.motes_messages = new ConcurrentHashMap<Integer, LinkedList<String>>();
+		this.motes_events = new ConcurrentHashMap<Integer, LinkedList<String>>();
 		this.motes_observer = new ConcurrentHashMap<Integer, Observer>();
 		this.motes_hw_events = new ConcurrentHashMap<Integer, LinkedList<String[]>>();
 		this.motes_hw_observer = new ConcurrentHashMap<Integer, Observer>();
@@ -222,7 +224,8 @@ public class MessageHandler extends Thread {
 				OtpErlangTuple args = ((OtpErlangTuple) msg.elementAt(2));
 				String radio = ((OtpErlangString) ((OtpErlangTuple) args)
 						.elementAt(0)).stringValue();
-				if (!(simulation.getRadioMedium().getClass().toString().equals(radio))) {
+				if (!(simulation.getRadioMedium().getClass().toString()
+						.equals(radio))) {
 					this.conn.send(sender, new OtpErlangAtom(
 							"radio_medium_nomatch"));
 					break;
@@ -290,7 +293,8 @@ public class MessageHandler extends Thread {
 			}
 			case "radio_get_config": {
 				OtpErlangObject[] retval = new OtpErlangObject[2];
-				String radio = simulation.getRadioMedium().getClass().toString();
+				String radio = simulation.getRadioMedium().getClass()
+						.toString();
 				retval[0] = new OtpErlangString(radio);
 				if (radio.equals(UDGM.class.toString())) {
 					UDGM medium = (UDGM) simulation.getRadioMedium();
@@ -478,9 +482,11 @@ public class MessageHandler extends Thread {
 					Mote mote = this.simulation.getMoteWithID(id);
 					SerialPort serial_port = (SerialPort) mote.getInterfaces()
 							.getLog();
-					SerialObserver obs = new SerialObserver(motes_output,
-							serial_port, id);
-					motes_output.put(id, "");
+					SerialObserver obs = new SerialObserver(motes_output_cache,
+							motes_events, motes_messages, serial_port, id);
+					motes_output_cache.put(id, "");
+					motes_events.put(id, new LinkedList<String>());
+					motes_messages.put(id, new LinkedList<String>());
 					motes_observer.put(id, obs);
 					serial_port.addSerialDataObserver(obs);
 					this.conn.send(sender, new OtpErlangAtom("ok"));
@@ -536,7 +542,9 @@ public class MessageHandler extends Thread {
 							.getLog();
 					serial_port.deleteSerialDataObserver(obs);
 					motes_observer.remove(id);
-					motes_output.remove(id);
+					motes_output_cache.remove(id);
+					motes_events.remove(id);
+					motes_messages.remove(id);
 					this.conn.send(sender, new OtpErlangAtom("ok"));
 				} else {
 					this.conn
@@ -604,38 +612,6 @@ public class MessageHandler extends Thread {
 				}
 				break;
 			}
-			case "mote_read_pushback": {
-				int id;
-				String data;
-				String old_data;
-				String new_data;
-				try {
-					OtpErlangTuple args = ((OtpErlangTuple) msg.elementAt(2));
-					id = ((OtpErlangLong) args.elementAt(0)).intValue();
-					if (((OtpErlangList) args.elementAt(1)).arity() > 0) {
-						data = ((OtpErlangString) args.elementAt(1))
-								.stringValue();
-					} else {
-						data = "";
-					}
-				} catch (OtpErlangRangeException e) {
-					this.conn.send(sender, new OtpErlangAtom("badid"));
-					break;
-				} catch (Exception e) {
-					this.conn.send(sender, new OtpErlangAtom("badargs"));
-					break;
-				}
-				do {
-					old_data = motes_output.get(id);
-					if (old_data == null) {
-						new_data = data;
-					} else {
-						new_data = data + old_data;
-					}
-				} while (!motes_output.replace(id, old_data, new_data));
-				this.conn.send(sender, new OtpErlangAtom("ok"));
-				break;
-			}
 			case "mote_read": {
 				h_mote_read(sender, msg);
 				break;
@@ -662,38 +638,26 @@ public class MessageHandler extends Thread {
 					this.conn.send(sender, new OtpErlangAtom("badid"));
 					break;
 				}
-				String data = motes_output.get(id);
-				if (data == null) {
-					this.conn
-							.send(sender, new OtpErlangAtom("not_listened_to"));
-					return;
+				LinkedList<String> tmp = ((SerialObserver)(motes_observer.get(id))).getEvents().get(id);
+				if (tmp==null) {
+					this.conn.send(sender, new OtpErlangAtom("not_listened"));
+				} else if (tmp.isEmpty()) {
+					this.conn.send(sender, new OtpErlangAtom("no_event"));
 				} else {
-					Pattern regex = Pattern.compile("(EVENT:[^\n]*\n)");
-					Matcher m = regex.matcher(data);
-					StringBuffer result = new StringBuffer();
-					if (m.find()) {
-						m.appendReplacement(result, "");
-						m.appendTail(result);
-						if (motes_output.replace(id, data, result.toString())) {
-							this.conn.send(sender,
-									new OtpErlangList(m.group(1)));
-						} else {
-							this.conn
-									.send(sender, new OtpErlangAtom("updated"));
-						}
-					} else {
-						this.conn.send(sender, new OtpErlangAtom("no_event"));
-					}
-					break;
+					String retval = tmp.pop();
+					motes_events.put(id, tmp);
+					this.conn.send(sender, new OtpErlangList(retval));
 				}
+				break;
 			}
 			/*
 			 * Default
 			 */
-			default:
+			default: {
 				logger.fatal("Undefined message\n");
 				this.conn.send(sender, new OtpErlangAtom("undef"));
 				break;
+			}
 			}
 		} catch (IOException e) {
 			try {
@@ -717,11 +681,17 @@ public class MessageHandler extends Thread {
 			this.conn.send(sender, new OtpErlangAtom("badid"));
 			return;
 		}
-		String ret = motes_output.replace(id, "");
-		if (ret == null) {
-			this.conn.send(sender, new OtpErlangAtom("not_listened_to"));
+		LinkedList<String> tmp = ((SerialObserver)(motes_observer.get(id))).getMessages().get(id);
+		if (tmp == null) {
+			this.conn.send(sender, new OtpErlangAtom("not_listened"));
 		} else {
-			this.conn.send(sender, new OtpErlangList(ret));
+			if (tmp.isEmpty()) {
+				this.conn.send(sender, new OtpErlangList(""));
+			} else {
+				String retval = tmp.pop();
+				motes_messages.put(id, tmp);
+				this.conn.send(sender, new OtpErlangList(retval));
+			}
 		}
 	}
 }
