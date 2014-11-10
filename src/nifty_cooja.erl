@@ -24,8 +24,12 @@
 	 simulation_time_ms/1,
 	 simulation_step_ms/1,
 	 simulation_step/2,
+	 %% radio
 	 radio_set_config/2,
 	 radio_get_config/1,
+	 radio_listen/1,
+	 radio_unlisten/1,
+	 radio_get_messages/1,
 	 %% motes
 	 mote_types/1,
 	 mote_add/2,
@@ -56,6 +60,7 @@
 	 wait_for_msg/3,
 	 wait_for_msg/4,
 	 next_event/2,
+	 next_event/3,
 	 duty_cycle/2
 	]).
 
@@ -315,6 +320,24 @@ radio_get_config(Handler) ->
 	Rsp -> Rsp
     end.
 
+radio_listen(Handler) ->
+    Handler ! {self(), radio_listen},
+    receive
+	Rsp -> Rsp
+    end.
+    
+radio_unlisten(Handler) ->
+    Handler ! {self(), radio_unlisten},
+    receive
+	Rsp -> Rsp
+    end.
+    
+radio_get_messages(Handler) ->
+    Handler ! {self(), radio_get_messages},
+    receive
+	Rsp -> Rsp
+    end.    
+
 motes(Handler) ->
     Handler ! {self(), motes},
     receive
@@ -417,6 +440,10 @@ get_last_event(Handler, Id) ->
 
 %% high-level stuff
 next_event(Handler, Mote) ->
+    next_event(Handler, Mote, 1000).
+
+next_event(_, _, T) when T<0 -> throw(timeout);
+next_event(Handler, Mote, T) ->
     case get_last_event(Handler, Mote) of
 	not_listened_to ->
 	    fail;
@@ -424,7 +451,7 @@ next_event(Handler, Mote) ->
 	    badid;
 	no_event ->
 	    ok = simulation_step(Handler, ?STEP_SIZE),
-	    next_event(Handler, Mote);
+	    next_event(Handler, Mote, T-?STEP_SIZE);
 	E ->
 	    E
     end.

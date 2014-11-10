@@ -16,6 +16,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.apache.log4j.Logger;
 import org.contikios.cooja.Mote;
 import org.contikios.cooja.MoteType;
+import org.contikios.cooja.RadioMedium;
 import org.contikios.cooja.SimEventCentral.LogOutputEvent;
 import org.contikios.cooja.SimEventCentral.LogOutputListener;
 import org.contikios.cooja.Simulation;
@@ -69,6 +70,8 @@ public class MessageHandler extends Thread {
 		public void removedLogOutput(LogOutputEvent ev) {
 		}
 	};
+	private LinkedList<OtpErlangObject> radio_messages;
+	private RadioObserver radio_observer;
 
 	public MessageHandler(OtpConnection conn, OtpErlangPid pid,
 			Simulation simulation) {
@@ -337,6 +340,43 @@ public class MessageHandler extends Thread {
 				this.conn.send(sender, new OtpErlangTuple(retval));
 				break;
 			}
+			case "radio_listen": {
+				if (radio_observer==null) {
+					RadioMedium rm = simulation.getRadioMedium();
+					radio_messages = new LinkedList<OtpErlangObject>();
+					radio_observer = new RadioObserver(simulation, 
+							radio_messages,
+							rm);
+					rm.addRadioMediumObserver(radio_observer);
+					this.conn.send(sender, new OtpErlangAtom("ok"));
+				} else {
+					this.conn.send(sender, new OtpErlangAtom(
+							"already_listened_on"));
+				}
+				break;
+			}
+			case "radio_unlisten": {
+				if (radio_observer==null) {
+					this.conn.send(sender, new OtpErlangAtom(
+							"not_listened_on"));
+				} else {
+					RadioMedium rm = simulation.getRadioMedium();
+					rm.deleteRadioMediumObserver(radio_observer);
+					radio_observer = null;
+					radio_messages = null;
+					this.conn.send(sender, new OtpErlangAtom("ok"));
+				}
+				break;
+			}
+			case "radio_get_messages": {
+				OtpErlangObject[] retval = new OtpErlangObject[radio_messages.size()];
+				for (int i=0; i<radio_messages.size(); i++) {
+					retval[i] = radio_messages.get(i);
+				}
+				radio_messages.clear();
+				this.conn.send(sender, new OtpErlangList(retval));
+				break;
+			}
 			/*
 			 * Mote specific calls
 			 */
@@ -379,7 +419,7 @@ public class MessageHandler extends Thread {
 				int id;
 				try {
 					OtpErlangTuple args = ((OtpErlangTuple) msg.elementAt(2));
-					id = ((OtpErlangInt) args.elementAt(0)).intValue();
+					id = ((OtpErlangLong) args.elementAt(0)).intValue();
 				} catch (OtpErlangRangeException e) {
 					this.conn.send(sender, new OtpErlangAtom("badid"));
 					break;

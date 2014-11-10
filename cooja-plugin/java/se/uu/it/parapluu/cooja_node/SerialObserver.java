@@ -58,7 +58,6 @@ public class SerialObserver implements Observer {
 				LinkedList<String> tmp = events.get(id);
 				tmp.addLast(data);
 				events.put(id, tmp);
-				logger.warn("Event: " + data);
 			} else {
 				/* it's a message */
 				LinkedList<String> tmp = messages.get(id);
