@@ -8,10 +8,9 @@
 
 package se.uu.it.parapluu.cooja_node;
 
-import java.util.LinkedList;
 import java.util.Observable;
 import java.util.Observer;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.apache.log4j.Logger;
 import org.contikios.cooja.interfaces.SerialPort;
@@ -19,29 +18,24 @@ import org.contikios.cooja.interfaces.SerialPort;
 public class SerialObserver implements Observer {
 	private static Logger logger = Logger.getLogger(MessageHandler.class);
 	private SerialPort serial_port;
-	private ConcurrentHashMap<Integer, String> cache;
-	private ConcurrentHashMap<Integer, LinkedList<String>> messages;
-	public ConcurrentHashMap<Integer, LinkedList<String>> getEvents() {
-		return events;
+	private String cache;
+	private ConcurrentLinkedQueue<String> messages;
+	private ConcurrentLinkedQueue<String> events;
+
+	public String nextEvent() {
+		return events.poll();
 	}
 
-	public ConcurrentHashMap<Integer, LinkedList<String>> getMessages() {
-		return messages;
+	public String nextMessage() {
+		return messages.poll();
 	}
-
-	private ConcurrentHashMap<Integer, LinkedList<String>> events;
-	private int id;
-
-	public SerialObserver(ConcurrentHashMap<Integer, String> cache,
-			ConcurrentHashMap<Integer, LinkedList<String>> messages,
-			ConcurrentHashMap<Integer, LinkedList<String>> events, 
-			SerialPort serial_port, int id) {
+	
+	public SerialObserver(SerialPort serial_port) {
 		super();
-		this.cache = cache;
-		this.messages = messages;
-		this.events = events;
+		this.cache = "";
+		this.messages = new ConcurrentLinkedQueue<String>();
+		this.events = new ConcurrentLinkedQueue<String>();
 		this.serial_port = serial_port;
-		this.id = id;
 	}
 
 	@Override
@@ -52,23 +46,22 @@ public class SerialObserver implements Observer {
 
 		if (c=='\n') {
 			/* new message */
-			data = cache.get(id) + c;
+			data = cache + c;
 			if (data.startsWith("EVENT")) {
 				/* it's an event */
-				LinkedList<String> tmp = events.get(id);
-				tmp.addLast(data);
-				events.put(id, tmp);
+				events.add(data);
+				// logger.warn("Event: "+data);
 			} else {
 				/* it's a message */
-				LinkedList<String> tmp = messages.get(id);
-				tmp.addLast(data);
-				messages.put(id, tmp);
+				messages.add(data);
+				// logger.warn("Message: "+data);
 			}
 			new_data = "";
 		} else {
 			/* append */
-			new_data = cache.get(id)+c;
+			new_data = cache+c;
 		}
-		cache.put(id, new_data);
+		cache = new_data;
 	}
 }
+

@@ -45,9 +45,6 @@ public class MessageHandler extends Thread {
 	private Simulation simulation;
 	private OtpConnection conn;
 
-	private ConcurrentHashMap<Integer, String> motes_output_cache;
-	private ConcurrentHashMap<Integer, LinkedList<String>> motes_messages;
-	private ConcurrentHashMap<Integer, LinkedList<String>> motes_events;
 	private ConcurrentHashMap<Integer, Observer> motes_observer;
 
 	private ConcurrentHashMap<Integer, LinkedList<String[]>> motes_hw_events;
@@ -77,9 +74,6 @@ public class MessageHandler extends Thread {
 			Simulation simulation) {
 		this.conn = conn;
 		this.simulation = simulation;
-		this.motes_output_cache = new ConcurrentHashMap<Integer, String>();
-		this.motes_messages = new ConcurrentHashMap<Integer, LinkedList<String>>();
-		this.motes_events = new ConcurrentHashMap<Integer, LinkedList<String>>();
 		this.motes_observer = new ConcurrentHashMap<Integer, Observer>();
 		this.motes_hw_events = new ConcurrentHashMap<Integer, LinkedList<String[]>>();
 		this.motes_hw_observer = new ConcurrentHashMap<Integer, Observer>();
@@ -341,12 +335,20 @@ public class MessageHandler extends Thread {
 				break;
 			}
 			case "radio_listen": {
+				int analyzer;
+				try {
+					OtpErlangTuple args = ((OtpErlangTuple) msg.elementAt(2));
+					analyzer = ((OtpErlangLong) args.elementAt(0)).intValue();
+				} catch (OtpErlangRangeException e) {
+					this.conn.send(sender, new OtpErlangAtom("badid"));
+					break;
+				}
 				if (radio_observer==null) {
 					RadioMedium rm = simulation.getRadioMedium();
 					radio_messages = new LinkedList<OtpErlangObject>();
 					radio_observer = new RadioObserver(simulation, 
 							radio_messages,
-							rm);
+							rm, analyzer);
 					rm.addRadioMediumObserver(radio_observer);
 					this.conn.send(sender, new OtpErlangAtom("ok"));
 				} else {
@@ -522,11 +524,7 @@ public class MessageHandler extends Thread {
 					Mote mote = this.simulation.getMoteWithID(id);
 					SerialPort serial_port = (SerialPort) mote.getInterfaces()
 							.getLog();
-					SerialObserver obs = new SerialObserver(motes_output_cache,
-							motes_events, motes_messages, serial_port, id);
-					motes_output_cache.put(id, "");
-					motes_events.put(id, new LinkedList<String>());
-					motes_messages.put(id, new LinkedList<String>());
+					SerialObserver obs = new SerialObserver(serial_port);
 					motes_observer.put(id, obs);
 					serial_port.addSerialDataObserver(obs);
 					this.conn.send(sender, new OtpErlangAtom("ok"));
@@ -582,9 +580,6 @@ public class MessageHandler extends Thread {
 							.getLog();
 					serial_port.deleteSerialDataObserver(obs);
 					motes_observer.remove(id);
-					motes_output_cache.remove(id);
-					motes_events.remove(id);
-					motes_messages.remove(id);
 					this.conn.send(sender, new OtpErlangAtom("ok"));
 				} else {
 					this.conn
@@ -678,15 +673,16 @@ public class MessageHandler extends Thread {
 					this.conn.send(sender, new OtpErlangAtom("badid"));
 					break;
 				}
-				LinkedList<String> tmp = ((SerialObserver)(motes_observer.get(id))).getEvents().get(id);
-				if (tmp==null) {
+
+				if (!motes_observer.containsKey(id)) {
 					this.conn.send(sender, new OtpErlangAtom("not_listened"));
-				} else if (tmp.isEmpty()) {
-					this.conn.send(sender, new OtpErlangAtom("no_event"));
 				} else {
-					String retval = tmp.pop();
-					motes_events.put(id, tmp);
-					this.conn.send(sender, new OtpErlangList(retval));
+					String retval = ((SerialObserver)(motes_observer.get(id))).nextEvent();
+					if (retval==null) {
+						this.conn.send(sender, new OtpErlangAtom("no_event"));
+					} else {
+						this.conn.send(sender, new OtpErlangList(retval));
+					}
 				}
 				break;
 			}
@@ -721,15 +717,13 @@ public class MessageHandler extends Thread {
 			this.conn.send(sender, new OtpErlangAtom("badid"));
 			return;
 		}
-		LinkedList<String> tmp = ((SerialObserver)(motes_observer.get(id))).getMessages().get(id);
-		if (tmp == null) {
+		if (!motes_observer.containsKey(id)) {
 			this.conn.send(sender, new OtpErlangAtom("not_listened"));
 		} else {
-			if (tmp.isEmpty()) {
+			String retval = ((SerialObserver)(motes_observer.get(id))).nextMessage();
+			if (retval==null) {
 				this.conn.send(sender, new OtpErlangList(""));
 			} else {
-				String retval = tmp.pop();
-				motes_messages.put(id, tmp);
 				this.conn.send(sender, new OtpErlangList(retval));
 			}
 		}

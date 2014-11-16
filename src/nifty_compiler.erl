@@ -45,7 +45,7 @@ render(InterfaceFile, ModuleName, CFlags, Options) ->
 		    		  {"types", Types},
 		    		  {"symbols", Symbols},
 		    		  {"constructors", Constructors},
-				  {"maxbuf", 100},
+				  {"maxbuf", 128},
 		    		  {"none", none}],
 		    COutput = render_with_errors(nifty_contiki_template, RenderVars),
 		    SOutput = render_with_errors(nifty_support_template, RenderVars),

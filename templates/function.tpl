@@ -13,7 +13,7 @@
 	{% for name in fn %}
 int
 niftycall_{{name}}(char* args) {
-  unsigned forward;
+  int forward;
   char* nextarg = args;
   char* curarg;
 
@@ -122,8 +122,6 @@ niftycall_{{name}}(char* args) {
 
 void
 save_serial(char* buffer, int length) {
-  // uint16_t crc = crc16_data((unsigned char*)buffer, length, 42);
-  // printf("<%.4X>%.*s\n", crc, length, buffer);
   if (length>100) {
     printf("fail\n");
   } else {
@@ -159,10 +157,6 @@ process_input(char* input){
  case -0x05:
    retval = free_mem(arguments);
    break;
- case -0x06:
-   /* resend */
-   retval = send_length;
-   break;
    /* generated functions */
   {% for name in fn %}
  case {{forloop.counter0}}:
@@ -171,11 +165,10 @@ process_input(char* input){
     {% endfor %}
   }
  if (retval!=-1) {
-   send_length = retval;
    save_serial(nifty_buffer, retval);
  } else {
-   send_length = snprintf(nifty_buffer, 100, "badarg\n");
-   save_serial(nifty_buffer, send_length);
+   retval = snprintf(nifty_buffer, 100, "badarg\n");
+   save_serial(nifty_buffer, retval);
  }
 {% endwith %}
 }

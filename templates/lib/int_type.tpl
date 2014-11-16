@@ -10,7 +10,11 @@
   {% endif %}
 
   {% if argument|is_return %}
-    {{type}} c_retval;
+    {% if typedef|getNth:2=="unsigned" %}
+    unsigned long c_retval;
+    {% else %}
+    long c_retval;
+    {% endif %}
   {% endif %}
 
 {% endif %}

@@ -27,7 +27,7 @@
 	 %% radio
 	 radio_set_config/2,
 	 radio_get_config/1,
-	 radio_listen/1,
+	 radio_listen/2,
 	 radio_unlisten/1,
 	 radio_get_messages/1,
 	 %% motes
@@ -61,6 +61,8 @@
 	 wait_for_msg/4,
 	 next_event/2,
 	 next_event/3,
+	 next_event_long/3,
+	 next_event_long/4,
 	 duty_cycle/2
 	]).
 
@@ -145,6 +147,8 @@ state() ->
 		{finished, {0, _}} -> ok;
 		{finished, {R, O}} -> {error, {R, O}};
 		{running, Handler} -> {running, Handler}
+	    after
+		1000 -> {error, {crash, cooja_server}}
 	    end;
 	false->
 	    not_running
@@ -177,7 +181,7 @@ command_fun(CoojaPath, Cmd, PrintOutput) ->
     {ok, OldPath} = file:get_cwd(),
     ok = file:set_cwd(filename:join([CoojaPath, "dist"])),
     {R, O} = command(Cmd),
-    ok = case PrintOutput of
+    ok = case PrintOutput orelse not(R=:=0) of
 	     true -> io:format("~s~n", [lists:flatten(O)]);
 	     false -> ok
 	 end,
@@ -247,193 +251,150 @@ normalize([]) ->
 %% ---------------------------------------------------------------------
 %% Commands
 
+receive_answer(Handler) ->
+    receive_answer(Handler, 30000).
+
+receive_answer(_, T) when T=<0 -> 
+    R = exit(),
+    throw({crash, R});
+receive_answer(Handler, T) ->
+    receive
+	R -> R
+    after
+	1000 -> 
+	    case state() of
+		{running, _} -> 
+		    receive_answer(Handler, T-1000);
+		E -> 
+		    throw({not_running, E})
+	    end
+    end.
+
 quit_cooja(Handler) ->
     Handler ! {self(), quit_cooja},
-    receive
-	ok -> ok
-    end.
+    receive_answer(Handler).
 
 start_simulation(Handler) ->
     Handler ! {self(), start_simulation},
-    receive
-	ok -> ok
-    end.
+    receive_answer(Handler).
 
 stop_simulation(Handler) ->
     Handler ! {self(), stop_simulation},
-    receive
-	ok -> ok
-    end.
+    receive_answer(Handler).
 
 set_speed_limit(Handler, SpeedLimit) ->
     Handler ! {self(), set_speed_limit, {SpeedLimit}},
-    receive
-	ok -> ok
-    end.
+    receive_answer(Handler).
 
 set_random_seed(Handler, Seed) ->
     Handler ! {self(), set_random_seed, {Seed}},
-    receive
-	ok -> ok
-    end.
-
+    receive_answer(Handler).
 
 is_running(Handler) ->
     Handler ! {self(), is_running},
-    receive
-	State -> State
-    end.
+    receive_answer(Handler).
 
 simulation_time(Handler) ->
     Handler ! {self(), simulation_time},
-    receive
-	Time -> Time
-    end.
+    receive_answer(Handler).
 
 simulation_time_ms(Handler) ->
     Handler ! {self(), simulation_time_ms},
-    receive
-	Time -> Time
-    end.
+    receive_answer(Handler).
 
 simulation_step_ms(Handler) ->
     Handler ! {self(), simulation_step_ms},
-    receive
-	Rsp -> Rsp
-    end.
+    receive_answer(Handler).
 
 simulation_step(Handler, Time) ->
     Handler ! {self(), simulation_step, {Time}},
-    receive
-	Rsp -> Rsp
-    end.
+    receive_answer(Handler).
 
 radio_set_config(Handler, {Radio, Options}) ->
     Handler ! {self(), radio_set_config, {Radio, Options}},
-    receive
-	Rsp -> Rsp
-    end.
+    receive_answer(Handler).
 
 radio_get_config(Handler) ->
     Handler ! {self(), radio_get_config},
-    receive
-	Rsp -> Rsp
-    end.
+    receive_answer(Handler).
 
-radio_listen(Handler) ->
-    Handler ! {self(), radio_listen},
-    receive
-	Rsp -> Rsp
-    end.
+radio_listen(Handler, Analyzers) ->
+    Handler ! {self(), radio_listen, {Analyzers}},
+    receive_answer(Handler).
     
 radio_unlisten(Handler) ->
     Handler ! {self(), radio_unlisten},
-    receive
-	Rsp -> Rsp
-    end.
+    receive_answer(Handler).
     
 radio_get_messages(Handler) ->
     Handler ! {self(), radio_get_messages},
-    receive
-	Rsp -> Rsp
-    end.    
+    receive_answer(Handler).
 
 motes(Handler) ->
     Handler ! {self(), motes},
-    receive
-	Motes -> Motes
-    end.
+    receive_answer(Handler).
 
 mote_types(Handler) ->
     Handler ! {self(), mote_types},
-    receive
-	Types -> Types
-    end.
+    receive_answer(Handler).
 
 mote_add(Handler, Type) ->
     Handler ! {self(), mote_add, {Type}},
-    receive
-	Rsp -> Rsp
-    end.    
+    receive_answer(Handler).
 
 mote_del(Handler, Id) ->
     Handler ! {self(), mote_del, {Id}},
-    receive
-	Rsp -> Rsp
-    end.
+    receive_answer(Handler).
 
 mote_get_pos(Handler, Id) ->
     Handler ! {self(), mote_get_pos, {Id}},
-    receive
-	Pos -> Pos
-    end.    
+    receive_answer(Handler).
 
 mote_set_pos(Handler, Id, Pos) ->
     {X, Y, Z} = Pos,
     Handler ! {self(), mote_set_pos, {Id, X, Y, Z}},
-    receive
-	Rsp -> Rsp
-    end.
+    receive_answer(Handler).
 
 mote_write(Handler, Mote, Data) ->
     Handler ! {self(), mote_write, {Mote, Data}},
-    receive
-	ok -> ok
-    end.
+    receive_answer(Handler).
 
 mote_listen(Handler, Mote) ->
     Handler ! {self(), mote_listen, {Mote}},
-    receive
-	Rsp -> Rsp
-    end.
+    receive_answer(Handler).
 
 mote_unlisten(Handler, Mote) ->
     Handler ! {self(), mote_unliste, {Mote}},
-    receive
-	Rsp -> Rsp
-    end.
+    receive_answer(Handler).
 
 mote_hw_listen(Handler, Mote) ->
     Handler ! {self(), mote_hw_listen, {Mote}},
-    receive
-	Rsp -> Rsp
-    end.
+    receive_answer(Handler).
 
 mote_hw_unlisten(Handler, Mote) ->
     Handler ! {self(), mote_hw_unliste, {Mote}},
-    receive
-	Rsp -> Rsp
-    end.
+    receive_answer(Handler).
 
 mote_hw_events(Handler, Mote) ->
     Handler ! {self(), mote_hw_events, {Mote}},
-    receive
-	Rsp -> Rsp
-    end.
+    receive_answer(Handler).
 
 mote_read(Handler, Mote) ->
     Handler ! {self(), mote_read, {Mote}},
-    receive
-	Data -> 
-	    Data
-    end.
+    receive_answer(Handler).
 
 mote_read_s(Handler, Mote) ->
     Handler ! {self(), mote_read_s, {Mote}},
-    receive
-	Data ->
-	    Data
-    end.
+    receive_answer(Handler).
 
 msg_wait(Handler, Msg) ->
     Handler ! {self(), msg_wait, {Msg}},
-    receive
-	ok -> ok
-    end.
+    receive_answer(Handler).
 
 get_last_event(Handler, Id) ->
     Handler ! {self(), get_last_event, {Id}},
-    receive
+    case  receive_answer(Handler) of
+	{not_running, E} -> {not_running, E};
 	no_event -> no_event;
 	R -> string:substr(R, 7, length(R)-7)
     end.
@@ -442,7 +403,7 @@ get_last_event(Handler, Id) ->
 next_event(Handler, Mote) ->
     next_event(Handler, Mote, 1000).
 
-next_event(_, _, T) when T<0 -> throw(timeout);
+next_event(_, _, T) when T=<0 -> throw(timeout);
 next_event(Handler, Mote, T) ->
     case get_last_event(Handler, Mote) of
 	not_listened_to ->
@@ -456,10 +417,27 @@ next_event(Handler, Mote, T) ->
 	    E
     end.
 
+next_event_long(Handler, Mote, T) ->
+    next_event_long(Handler, Mote, T, T div 10).
+
+next_event_long(_, _, T, _) when T=<0 -> throw(timeout);
+next_event_long(Handler, Mote, T, S) ->
+    case get_last_event(Handler, Mote) of
+	not_listened_to ->
+	    fail;
+	badid ->
+	    badid;
+	no_event ->
+	    ok = simulation_step(Handler, S),
+	    next_event_long(Handler, Mote, T-S, S);
+	E ->
+	    E
+    end.
+
 wait_for_result(Handler, Mote) ->
     wait_for_result(Handler, Mote, 1000).
 
-wait_for_result(_,_,T) when T<0 -> throw(timeout);
+wait_for_result(_,_,T) when T=<0 -> throw(timeout);
 wait_for_result(Handler, Mote, T) ->
     case state() of
 	{running, _} ->
@@ -471,7 +449,7 @@ wait_for_result(Handler, Mote, T) ->
 		    case re:run(S, "DEBUG[^\n]*\n") of
 			{match, [{_,_}]} ->
 			    ok = simulation_step(Handler, ?STEP_SIZE),
-			    io:format("<<~p>>~n", [S]),
+			    %% io:format("<<~p>>~n", [S]),
 			    wait_for_result(Handler, Mote, T-?STEP_SIZE);
 			_ ->
 			    S
@@ -484,7 +462,7 @@ wait_for_result(Handler, Mote, T) ->
 wait_for_msg(Handler, Mote, Msg) ->
     wait_for_msg(Handler, Mote, 1000, Msg).
 
-wait_for_msg(_, _, T, _) when T<0 -> throw(timeout);
+wait_for_msg(_, _, T, _) when T=<0 -> throw(timeout);
 wait_for_msg(Handler, Mote, T, Msg) ->
     case state() of
 	{running, _} ->
@@ -496,7 +474,7 @@ wait_for_msg(Handler, Mote, T, Msg) ->
 		    case re:run(S, "DEBUG[^\n]*\n") of
 			{match, [{_,_}]} ->
 			    ok = simulation_step(Handler, ?STEP_SIZE),
-			    io:format("<<~p>>~n", [S]),
+			    %% io:format("<<~p>>~n", [S]),
 			    wait_for_msg(Handler, Mote, T-?STEP_SIZE, Msg);
 			_ ->
 			    case re:run(S, Msg) of

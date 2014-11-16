@@ -29,20 +29,44 @@ public class RadioObserver implements Observer {
 	private RadioMedium radioMedium;
 	private ArrayList<PacketAnalyzer> analyzers = null;
 	
-	
+	private ArrayList<PacketAnalyzer>  lowpanAnalyzers= null;
+	private ArrayList<PacketAnalyzer>  lowpanAnalyzersPcap= null;
+
 	
 	public RadioObserver(Simulation simulation,
 			LinkedList<OtpErlangObject> messages,
-			RadioMedium radioMedium) {
+			RadioMedium radioMedium, int analyzer) {
 		super();
 		this.setMessages(messages);
 		this.radioMedium = radioMedium;
-		analyzers = new ArrayList<PacketAnalyzer>();
-		analyzers.add(new IEEE802154Analyzer(false));
-		analyzers.add(new FragHeadPacketAnalyzer());
-		analyzers.add(new IPHCPacketAnalyzer());
-		analyzers.add(new IPv6PacketAnalyzer());
-		analyzers.add(new ICMPv6Analyzer());
+		
+		lowpanAnalyzers = new ArrayList<PacketAnalyzer>();
+	    lowpanAnalyzers.add(new IEEE802154Analyzer(false));
+	    lowpanAnalyzers.add(new FragHeadPacketAnalyzer());
+	    lowpanAnalyzers.add(new IPHCPacketAnalyzer());
+	    lowpanAnalyzers.add(new IPv6PacketAnalyzer());
+	    lowpanAnalyzers.add(new ICMPv6Analyzer());
+	    
+	    lowpanAnalyzersPcap = new ArrayList<PacketAnalyzer>();
+	    lowpanAnalyzersPcap.add(new IEEE802154Analyzer(true));
+	    lowpanAnalyzersPcap.add(new FragHeadPacketAnalyzer());
+	    lowpanAnalyzersPcap.add(new IPHCPacketAnalyzer());
+	    lowpanAnalyzersPcap.add(new IPv6PacketAnalyzer());
+	    lowpanAnalyzersPcap.add(new ICMPv6Analyzer());
+	    
+	    switch (analyzer) {
+	    case 0: 
+	    	this.analyzers = null;
+	    	break;
+	    case 1:
+	    	this.analyzers = lowpanAnalyzers;
+	    	break;
+	    case 2:
+	    	this.analyzers = lowpanAnalyzersPcap;
+	    	break;
+	    default:
+	    	this.analyzers = null;
+	    }
 	}
 
 	@Override
