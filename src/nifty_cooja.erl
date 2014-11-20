@@ -12,6 +12,7 @@
 	 start/2,
 	 start/3,
 	 state/0,
+	 update_handler/1,
 	 exit/0,
 	 quit_cooja/1,
 	 %% simulation
@@ -24,6 +25,7 @@
 	 simulation_time_ms/1,
 	 simulation_step_ms/1,
 	 simulation_step/2,
+	 simulation_step/3,
 	 %% radio
 	 radio_set_config/2,
 	 radio_get_config/1,
@@ -140,6 +142,16 @@ exit() ->
 	    E
     end.
 
+update_handler(Handler) ->
+    case lists:member(cooja_server, registered()) of
+	true ->
+	    P = whereis(cooja_server),
+	    P ! {handler, Handler},
+	    nifty_cooja:state();
+	false ->
+	    not_running
+    end.
+
 state() ->
     case lists:member(cooja_server, registered()) of
 	true ->
@@ -173,7 +185,9 @@ handle_requests(Handler) ->
 	    end;
 	{state, P} ->
 	    P ! {running, Handler},
-	    handle_requests(Handler)
+	    handle_requests(Handler);
+	{handler, NewHandler} ->
+	    handle_requests(NewHandler)
     end.
 
 command_fun(CoojaPath, Cmd, PrintOutput) ->
