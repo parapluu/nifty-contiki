@@ -34,7 +34,7 @@ export LD_LIBRARY_PATH=/usr/lib/llvm-3.4/lib
 Clone Nifty from the official repository, change to the directory and run make:
 
 {% highlight bash %}
-git clone https://github.com/parapluu/nifty.git
+git clone https://github.com/parapluu/nifty-contiki.git
 cd nifty/
 make
 {% endhighlight %}
