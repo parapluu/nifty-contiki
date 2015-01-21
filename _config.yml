@@ -1,4 +1,4 @@
-title:            Nifty Contiki - Nifty Contiki Interface Generator
+title:            Nifty Testing Framework
 description:      New, Documentation and Tutorials of Nifty
 # Your site's domain goes here. Leave localhost server or blank when working locally.
 #url:              http://130.238.11.192:4000
@@ -10,7 +10,7 @@ disqus_shortname:
 owner:
   name:           Nifty
   avatar:         avatar.png
-  bio:            "Nifty Contiki - Contiki Interface Generator"
+  bio:            "Nifty Testing Framework"
   email:         
   # Social networking links are used in author-bio sidebar. Update and remove as you like.
   twitter:        
