@@ -1,6 +1,6 @@
 -module(nifty_xmlhelper).
 -export([parse_xml/1, export_xml/2]).
--export([new_mote/1, mote_set_position/3, mote_set_id/3, add_mote/2, add_script/2]).
+-export([new_mote/1, mote_set_position/3, mote_set_id/3, add_mote/2, add_script/2, remove_controler/1]).
 
 -export([get_node/2, get_all_nodes/2, get_interface_key/3]).
 
@@ -33,17 +33,24 @@ add_mote(Doc, Mote) ->
     NewSim = {simulation, SimArg, SimC ++ [Mote]},
     {simconf, Args, update_node(Content, simulation, NewSim)}.
 
-add_script(Doc = {Name, Args, Content}, Script) -> 
+add_script({Name, Args, Content}, Script) -> 
     ScriptElement = {script, [], [Script]},
-    PCElement = {plugin_config, [], [Script, 
-				     {active, [], ["false"]}]},
-    PluginElement = {plugin, [], [PCElement,
+    PCElement = {plugin_config, [], [ScriptElement, 
+				     {active, [], ["true"]}]},
+    PluginElement = {plugin, [], ["org.contikios.cooja.plugins.ScriptRunner",
+				  PCElement,
 				  {width, [], ["100"]},
 				  {z, [], ["0"]},
 				  {height, [], ["100"]},
 				  {location_x, [], ["20"]},
 				  {location_y, [], ["20"]}]},
      {Name, Args, Content ++ [PluginElement]}.
+
+remove_controler(Doc) ->
+    {simconf, Args, Content} = Doc,
+    Pred = fun ({plugin, _, [Class|_]}) -> strip(Class) =/= "se.uu.it.parapluu.cooja_node.SocketControlPlugin";
+	       (_) -> true end,
+    {simconf, Args, lists:filter(Pred, Content)}.
 
 new_mote(Type) ->
     {mote, [], [{breakpoints, [], []}, 

@@ -65,10 +65,7 @@
 	 next_event/3,
 	 next_event_long/3,
 	 next_event_long/4,
-	 duty_cycle/2,
-	 %% recorder
-	 retrieve_events/1,
-	 events_to_calls/1
+	 duty_cycle/2
 	]).
 
 -define(STEP_SIZE, 100).
@@ -118,7 +115,7 @@ start(RawCoojaPath, RawSimfile, Options) ->
 				 {pid, Pid} ->
 				     Handler = case lists:member(record, Options) of
 						   true ->
-						       RecorderProcess = start_recorder(),
+						       RecorderProcess = nifty_cooja_recorder:start_recorder(),
 						       {Pid, [{timeout, ?TIMEOUT},
 							      {step_size, ?STEP_SIZE},
 							      {record, RecorderProcess}]};
@@ -149,7 +146,7 @@ exit() ->
     case state() of
 	{running, Handler} ->
 	    ok = quit_cooja(Handler),
-	    stop_recorder(Handler),
+	    nifty_cooja_recorder:stop_recorder(Handler),
 	    wait_for_cooja();
 	E ->
 	    E
@@ -293,7 +290,7 @@ receive_answer({_, Opts} = Handler, T) ->
 		     undefined ->
 			 ok;
 		     _ ->
-			 record_event(Handler, {answer, Time, R})
+			 nifty_cooja_recorder:record_event(Handler, {answer, Time, R})
 		 end,
 	    R
     after
@@ -311,7 +308,7 @@ send_msg({P, Opts} = Handler, Msg) ->
 	     undefined ->
 		 ok;
 	     _ ->
-		 record_event(Handler, {call, Msg})
+		 nifty_cooja_recorder:record_event(Handler, {call, Msg})
 	 end,
     P ! Msg.
 
@@ -673,66 +670,3 @@ on_time([{radio,["off", Time]}|T], Acc, Start, E) ->
     on_time(T, Acc + erlang:list_to_integer(Time) - Start, off, E);
 on_time([_|T], Acc, S, E) -> 
     on_time(T, Acc, S, E).
-
-record_event({_,Opts}, Event) ->
-    case proplists:get_value(record, Opts) of
-	undefined ->
-	    erlang:error(corrupt_handler);
-	Recorder ->
-	    Recorder ! {self(), {record, Event}},
-	    ok = receive
-		     ok ->
-			 ok
-		 end,
-	    ok
-    end.
-
-retrieve_events({_, Opts}) ->
-    case proplists:get_value(record, Opts) of
-	undefined ->
-	    erlang:error(corrupt_handler);
-	Recorder ->
-	    Recorder ! {self(), retrieve},
-	    receive
-		     Events ->
-			 Events
-	    end
-    end.
-
-events_to_calls(Events) ->
-    events_to_calls(Events, []).
-
-events_to_calls([], Acc) -> Acc;
-events_to_calls([A,C|Tail], Acc) ->
-    {answer, Time, RetVal} = A,
-    {Call, Args} = case C of
-		       {call, {_, RCall, RArgs}} -> {RCall, RArgs};
-		       {call, {_, RCall}} -> {RCall, {}}
-		   end,
-    events_to_calls(Tail, [{Time, Call, Args, RetVal}|Acc]).
-
-start_recorder() ->
-    spawn(fun() -> recorder_loop([]) end).
-
-recorder_loop(List) ->
-    receive
-	{Pid, retrieve} ->
-	    Pid ! List,
-	    recorder_loop([]);
-	{Pid, {record, Event}} ->
-	    Pid ! ok,
-	    recorder_loop([Event|List]);
-	{Pid, stop} ->
-	    Pid ! ok
-    end.
-
-stop_recorder({_, Opts}) ->
-    case proplists:get_value(record, Opts) of
-	undefined ->
-	    ok; %% ignor instances with no recorders
-	Recorder ->
-	    Recorder ! {self(), stop},
-	    ok = receive
-		     ok -> ok
-		 end
-    end.

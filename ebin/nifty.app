@@ -10,6 +10,7 @@
 			nifty, 
 			nifty_clangparse,
 			nifty_cooja,
+			nifty_cooja_recorder,
 			nifty_compiler,
 			nifty_filters,
 			nifty_rebar,
