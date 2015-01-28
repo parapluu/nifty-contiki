@@ -128,6 +128,15 @@ public class MessageHandler extends Thread {
 		}
 	}
 
+	private void sendResponsWithTime(OtpErlangPid sender, OtpErlangObject response)
+			throws IOException {
+		long time = this.simulation.getSimulationTime();
+		OtpErlangObject items[] = new OtpErlangObject [2];
+		items[0] = new OtpErlangLong(time);
+		items[1] = response;
+		this.conn.send(sender, new OtpErlangTuple(items));
+	}
+	
 	private void handleRequest(OtpErlangPid sender, OtpErlangAtom request,
 			OtpErlangTuple msg) throws InterruptedException {
 		try {
@@ -136,7 +145,7 @@ public class MessageHandler extends Thread {
 			 * Cooja Stuff
 			 */
 			case "quit_cooja":
-				this.conn.send(sender, new OtpErlangAtom("ok"));
+				sendResponsWithTime(sender, new OtpErlangAtom("ok"));
 				this.simulation.getCooja().doQuit(false, 0);
 				break;
 			/*
@@ -144,11 +153,11 @@ public class MessageHandler extends Thread {
 			 */
 			case "start_simulation":
 				this.simulation.startSimulation();
-				this.conn.send(sender, new OtpErlangAtom("ok"));
+				sendResponsWithTime(sender, new OtpErlangAtom("ok"));
 				break;
 			case "stop_simulation":
 				this.simulation.stopSimulation();
-				this.conn.send(sender, new OtpErlangAtom("ok"));
+				sendResponsWithTime(sender, new OtpErlangAtom("ok"));
 				break;
 			case "set_speed_limit": {
 				OtpErlangTuple args = ((OtpErlangTuple) msg.elementAt(2));
@@ -159,44 +168,44 @@ public class MessageHandler extends Thread {
 				} else {
 					this.simulation.setSpeedLimit(speedlimit);
 				}
-				this.conn.send(sender, new OtpErlangAtom("ok"));
+				sendResponsWithTime(sender, new OtpErlangAtom("ok"));
 				break;
 			}
 			case "set_random_seed": {
 				OtpErlangTuple args = ((OtpErlangTuple) msg.elementAt(2));
 				long seed = ((OtpErlangLong) args.elementAt(0)).longValue();
 				this.simulation.setRandomSeed(seed);
-				this.conn.send(sender, new OtpErlangAtom("ok"));
+				sendResponsWithTime(sender, new OtpErlangAtom("ok"));
 				break;
 			}
 			case "is_running":
-				this.conn.send(sender,
+				sendResponsWithTime(sender,
 						new OtpErlangAtom(this.simulation.isRunning()));
 				break;
 			case "simulation_time":
-				this.conn.send(sender,
+				sendResponsWithTime(sender,
 						new OtpErlangLong(this.simulation.getSimulationTime()));
 				break;
 			case "simulation_time_ms":
-				this.conn.send(
+				sendResponsWithTime(
 						sender,
 						new OtpErlangLong(this.simulation
 								.getSimulationTimeMillis()));
 				break;
 			case "simulation_step_ms":
 				if (this.simulation.isRunning()) {
-					this.conn.send(sender, new OtpErlangAtom("running"));
+					sendResponsWithTime(sender, new OtpErlangAtom("running"));
 				} else {
 					simulation.stepMillisecondSimulation();
 					while (simulation.isRunning()) {
 						sleep(1);
 					}
-					this.conn.send(sender, new OtpErlangAtom("ok"));
+					sendResponsWithTime(sender, new OtpErlangAtom("ok"));
 				}
 				break;
 			case "simulation_step": {
 				if (this.simulation.isRunning()) {
-					this.conn.send(sender, new OtpErlangAtom("running"));
+					sendResponsWithTime(sender, new OtpErlangAtom("running"));
 				} else {
 					OtpErlangTuple args = ((OtpErlangTuple) msg.elementAt(2));
 					long time = ((OtpErlangLong) args.elementAt(0)).longValue();
@@ -213,7 +222,7 @@ public class MessageHandler extends Thread {
 					while (simulation.isRunning()) {
 						sleep(100);
 					}
-					this.conn.send(sender, new OtpErlangAtom("ok"));
+					sendResponsWithTime(sender, new OtpErlangAtom("ok"));
 				}
 				break;
 			}
@@ -223,7 +232,7 @@ public class MessageHandler extends Thread {
 						.elementAt(0)).stringValue();
 				if (!(simulation.getRadioMedium().getClass().toString()
 						.equals(radio))) {
-					this.conn.send(sender, new OtpErlangAtom(
+					sendResponsWithTime(sender, new OtpErlangAtom(
 							"radio_medium_nomatch"));
 					break;
 				}
@@ -276,17 +285,17 @@ public class MessageHandler extends Thread {
 							}
 						}
 					} catch (Exception e) {
-						this.conn.send(sender, new OtpErlangAtom(
+						sendResponsWithTime(sender, new OtpErlangAtom(
 								"radio_medium_badoptions"));
 						break;
 					}
 				} else {
 					/* fallback */
-					this.conn.send(sender, new OtpErlangAtom(
+					sendResponsWithTime(sender, new OtpErlangAtom(
 							"radio_medium_unsupported"));
 					break;
 				}
-				this.conn.send(sender, new OtpErlangAtom("ok"));
+				sendResponsWithTime(sender, new OtpErlangAtom("ok"));
 			}
 			case "radio_get_config": {
 				OtpErlangObject[] retval = new OtpErlangObject[2];
@@ -331,7 +340,7 @@ public class MessageHandler extends Thread {
 				} else {
 					retval[1] = new OtpErlangList();
 				}
-				this.conn.send(sender, new OtpErlangTuple(retval));
+				sendResponsWithTime(sender, new OtpErlangTuple(retval));
 				break;
 			}
 			case "radio_listen": {
@@ -340,7 +349,7 @@ public class MessageHandler extends Thread {
 					OtpErlangTuple args = ((OtpErlangTuple) msg.elementAt(2));
 					analyzer = ((OtpErlangLong) args.elementAt(0)).intValue();
 				} catch (OtpErlangRangeException e) {
-					this.conn.send(sender, new OtpErlangAtom("badid"));
+					sendResponsWithTime(sender, new OtpErlangAtom("badid"));
 					break;
 				}
 				if (radio_observer==null) {
@@ -350,23 +359,23 @@ public class MessageHandler extends Thread {
 							radio_messages,
 							rm, analyzer);
 					rm.addRadioMediumObserver(radio_observer);
-					this.conn.send(sender, new OtpErlangAtom("ok"));
+					sendResponsWithTime(sender, new OtpErlangAtom("ok"));
 				} else {
-					this.conn.send(sender, new OtpErlangAtom(
+					sendResponsWithTime(sender, new OtpErlangAtom(
 							"already_listened_on"));
 				}
 				break;
 			}
 			case "radio_unlisten": {
 				if (radio_observer==null) {
-					this.conn.send(sender, new OtpErlangAtom(
+					sendResponsWithTime(sender, new OtpErlangAtom(
 							"not_listened_on"));
 				} else {
 					RadioMedium rm = simulation.getRadioMedium();
 					rm.deleteRadioMediumObserver(radio_observer);
 					radio_observer = null;
 					radio_messages = null;
-					this.conn.send(sender, new OtpErlangAtom("ok"));
+					sendResponsWithTime(sender, new OtpErlangAtom("ok"));
 				}
 				break;
 			}
@@ -376,7 +385,7 @@ public class MessageHandler extends Thread {
 					retval[i] = radio_messages.get(i);
 				}
 				radio_messages.clear();
-				this.conn.send(sender, new OtpErlangList(retval));
+				sendResponsWithTime(sender, new OtpErlangList(retval));
 				break;
 			}
 			/*
@@ -388,7 +397,7 @@ public class MessageHandler extends Thread {
 				for (int i = 0; i < types.length; i++) {
 					retval[i] = new OtpErlangList(types[i].getIdentifier());
 				}
-				this.conn.send(sender, new OtpErlangList(retval));
+				sendResponsWithTime(sender, new OtpErlangList(retval));
 				break;
 			}
 			case "mote_add": {
@@ -411,9 +420,9 @@ public class MessageHandler extends Thread {
 					OtpErlangObject[] retval = new OtpErlangObject[2];
 					retval[0] = new OtpErlangAtom("ok");
 					retval[1] = new OtpErlangInt(mid);
-					this.conn.send(sender, new OtpErlangTuple(retval));
+					sendResponsWithTime(sender, new OtpErlangTuple(retval));
 				} else {
-					this.conn.send(sender, new OtpErlangAtom("unknown_type"));
+					sendResponsWithTime(sender, new OtpErlangAtom("unknown_type"));
 				}
 				break;
 			}
@@ -423,15 +432,15 @@ public class MessageHandler extends Thread {
 					OtpErlangTuple args = ((OtpErlangTuple) msg.elementAt(2));
 					id = ((OtpErlangLong) args.elementAt(0)).intValue();
 				} catch (OtpErlangRangeException e) {
-					this.conn.send(sender, new OtpErlangAtom("badid"));
+					sendResponsWithTime(sender, new OtpErlangAtom("badid"));
 					break;
 				}
 				try {
 					Mote m = simulation.getMoteWithID(id);
 					simulation.removeMote(m);
-					this.conn.send(sender, new OtpErlangAtom("ok"));
+					sendResponsWithTime(sender, new OtpErlangAtom("ok"));
 				} catch (Exception e) {
-					this.conn.send(sender, new OtpErlangAtom("fail"));
+					sendResponsWithTime(sender, new OtpErlangAtom("fail"));
 				}
 				break;
 			}
@@ -441,7 +450,7 @@ public class MessageHandler extends Thread {
 					OtpErlangTuple args = ((OtpErlangTuple) msg.elementAt(2));
 					id = ((OtpErlangLong) args.elementAt(0)).intValue();
 				} catch (OtpErlangRangeException e) {
-					this.conn.send(sender, new OtpErlangAtom("badid"));
+					sendResponsWithTime(sender, new OtpErlangAtom("badid"));
 					break;
 				}
 				try {
@@ -453,9 +462,9 @@ public class MessageHandler extends Thread {
 					retval[0] = new OtpErlangDouble(x);
 					retval[1] = new OtpErlangDouble(y);
 					retval[2] = new OtpErlangDouble(z);
-					this.conn.send(sender, new OtpErlangTuple(retval));
+					sendResponsWithTime(sender, new OtpErlangTuple(retval));
 				} catch (Exception e) {
-					this.conn.send(sender, new OtpErlangAtom("fail"));
+					sendResponsWithTime(sender, new OtpErlangAtom("fail"));
 				}
 				break;
 			}
@@ -469,15 +478,15 @@ public class MessageHandler extends Thread {
 					y = ((OtpErlangDouble) args.elementAt(2)).doubleValue();
 					z = ((OtpErlangDouble) args.elementAt(3)).doubleValue();
 				} catch (OtpErlangRangeException e) {
-					this.conn.send(sender, new OtpErlangAtom("badid"));
+					sendResponsWithTime(sender, new OtpErlangAtom("badid"));
 					break;
 				}
 				try {
 					Mote m = simulation.getMoteWithID(id);
 					m.getInterfaces().getPosition().setCoordinates(x, y, z);
-					this.conn.send(sender, new OtpErlangAtom("ok"));
+					sendResponsWithTime(sender, new OtpErlangAtom("ok"));
 				} catch (Exception e) {
-					this.conn.send(sender, new OtpErlangAtom("fail"));
+					sendResponsWithTime(sender, new OtpErlangAtom("fail"));
 				}
 				break;
 			}
@@ -487,7 +496,7 @@ public class MessageHandler extends Thread {
 				for (int i = 0; i < motes.length; i++) {
 					elements[i] = new OtpErlangInt(motes[i].getID());
 				}
-				this.conn.send(sender, new OtpErlangList(elements));
+				sendResponsWithTime(sender, new OtpErlangList(elements));
 				break;
 			}
 			case "mote_write": {
@@ -498,17 +507,17 @@ public class MessageHandler extends Thread {
 					id = ((OtpErlangLong) args.elementAt(0)).intValue();
 					data = ((OtpErlangString) args.elementAt(1)).stringValue();
 				} catch (OtpErlangRangeException e) {
-					this.conn.send(sender, new OtpErlangAtom("badid"));
+					sendResponsWithTime(sender, new OtpErlangAtom("badid"));
 					break;
 				} catch (Exception e) {
-					this.conn.send(sender, new OtpErlangAtom("badargs"));
+					sendResponsWithTime(sender, new OtpErlangAtom("badargs"));
 					break;
 				}
 				Mote mote = this.simulation.getMoteWithID(id);
 				SerialPort serialPort = (SerialPort) mote.getInterfaces()
 						.getLog();
 				serialPort.writeString(data);
-				this.conn.send(sender, new OtpErlangAtom("ok"));
+				sendResponsWithTime(sender, new OtpErlangAtom("ok"));
 				break;
 			}
 			case "mote_listen": {
@@ -517,7 +526,7 @@ public class MessageHandler extends Thread {
 					OtpErlangTuple args = ((OtpErlangTuple) msg.elementAt(2));
 					id = ((OtpErlangLong) args.elementAt(0)).intValue();
 				} catch (OtpErlangRangeException e) {
-					this.conn.send(sender, new OtpErlangAtom("badid"));
+					sendResponsWithTime(sender, new OtpErlangAtom("badid"));
 					break;
 				}
 				if (!motes_observer.containsKey(id)) {
@@ -527,9 +536,9 @@ public class MessageHandler extends Thread {
 					SerialObserver obs = new SerialObserver(serial_port);
 					motes_observer.put(id, obs);
 					serial_port.addSerialDataObserver(obs);
-					this.conn.send(sender, new OtpErlangAtom("ok"));
+					sendResponsWithTime(sender, new OtpErlangAtom("ok"));
 				} else {
-					this.conn.send(sender, new OtpErlangAtom(
+					sendResponsWithTime(sender, new OtpErlangAtom(
 							"already_listened_on"));
 				}
 				break;
@@ -540,7 +549,7 @@ public class MessageHandler extends Thread {
 					OtpErlangTuple args = ((OtpErlangTuple) msg.elementAt(2));
 					id = ((OtpErlangLong) args.elementAt(0)).intValue();
 				} catch (OtpErlangRangeException e) {
-					this.conn.send(sender, new OtpErlangAtom("badid"));
+					sendResponsWithTime(sender, new OtpErlangAtom("badid"));
 					break;
 				}
 				if (!motes_hw_observer.containsKey(id)) {
@@ -557,9 +566,9 @@ public class MessageHandler extends Thread {
 					}
 					motes_hw_observer.put(id, obs);
 					motes_hw_events.put(id, new LinkedList<String[]>());
-					this.conn.send(sender, new OtpErlangAtom("ok"));
+					sendResponsWithTime(sender, new OtpErlangAtom("ok"));
 				} else {
-					this.conn.send(sender, new OtpErlangAtom(
+					sendResponsWithTime(sender, new OtpErlangAtom(
 							"already_listened_on"));
 				}
 				break;
@@ -570,7 +579,7 @@ public class MessageHandler extends Thread {
 					OtpErlangTuple args = ((OtpErlangTuple) msg.elementAt(2));
 					id = ((OtpErlangLong) args.elementAt(0)).intValue();
 				} catch (OtpErlangRangeException e) {
-					this.conn.send(sender, new OtpErlangAtom("badid"));
+					sendResponsWithTime(sender, new OtpErlangAtom("badid"));
 					break;
 				}
 				if (motes_observer.containsKey(id)) {
@@ -580,7 +589,7 @@ public class MessageHandler extends Thread {
 							.getLog();
 					serial_port.deleteSerialDataObserver(obs);
 					motes_observer.remove(id);
-					this.conn.send(sender, new OtpErlangAtom("ok"));
+					sendResponsWithTime(sender, new OtpErlangAtom("ok"));
 				} else {
 					this.conn
 							.send(sender, new OtpErlangAtom("not_listened_on"));
@@ -593,7 +602,7 @@ public class MessageHandler extends Thread {
 					OtpErlangTuple args = ((OtpErlangTuple) msg.elementAt(2));
 					id = ((OtpErlangLong) args.elementAt(0)).intValue();
 				} catch (OtpErlangRangeException e) {
-					this.conn.send(sender, new OtpErlangAtom("badid"));
+					sendResponsWithTime(sender, new OtpErlangAtom("badid"));
 					break;
 				}
 				if (motes_hw_observer.containsKey(id)) {
@@ -605,7 +614,7 @@ public class MessageHandler extends Thread {
 					radio.deleteObserver(obs);
 					motes_hw_observer.remove(id);
 					motes_hw_events.remove(id);
-					this.conn.send(sender, new OtpErlangAtom("ok"));
+					sendResponsWithTime(sender, new OtpErlangAtom("ok"));
 				} else {
 					this.conn
 							.send(sender, new OtpErlangAtom("not_listened_on"));
@@ -618,7 +627,7 @@ public class MessageHandler extends Thread {
 					OtpErlangTuple args = ((OtpErlangTuple) msg.elementAt(2));
 					id = ((OtpErlangLong) args.elementAt(0)).intValue();
 				} catch (OtpErlangRangeException e) {
-					this.conn.send(sender, new OtpErlangAtom("badid"));
+					sendResponsWithTime(sender, new OtpErlangAtom("badid"));
 					break;
 				}
 				if (motes_hw_events.containsKey(id)) {
@@ -640,7 +649,7 @@ public class MessageHandler extends Thread {
 						elements[i] = (OtpErlangObject) (new OtpErlangTuple(
 								element));
 					}
-					this.conn.send(sender, new OtpErlangList(elements));
+					sendResponsWithTime(sender, new OtpErlangList(elements));
 				} else {
 					this.conn
 							.send(sender, new OtpErlangAtom("not_listened_on"));
@@ -661,7 +670,7 @@ public class MessageHandler extends Thread {
 				OtpErlangTuple args = ((OtpErlangTuple) msg.elementAt(2));
 				data = ((OtpErlangString) args.elementAt(0)).stringValue();
 				wait_for_msg(data);
-				this.conn.send(sender, new OtpErlangAtom("ok"));
+				sendResponsWithTime(sender, new OtpErlangAtom("ok"));
 				break;
 			}
 			case "get_last_event": {
@@ -670,18 +679,18 @@ public class MessageHandler extends Thread {
 				try {
 					id = ((OtpErlangLong) args.elementAt(0)).intValue();
 				} catch (OtpErlangRangeException e) {
-					this.conn.send(sender, new OtpErlangAtom("badid"));
+					sendResponsWithTime(sender, new OtpErlangAtom("badid"));
 					break;
 				}
 
 				if (!motes_observer.containsKey(id)) {
-					this.conn.send(sender, new OtpErlangAtom("not_listened"));
+					sendResponsWithTime(sender, new OtpErlangAtom("not_listened"));
 				} else {
 					String retval = ((SerialObserver)(motes_observer.get(id))).nextEvent();
 					if (retval==null) {
-						this.conn.send(sender, new OtpErlangAtom("no_event"));
+						sendResponsWithTime(sender, new OtpErlangAtom("no_event"));
 					} else {
-						this.conn.send(sender, new OtpErlangList(retval));
+						sendResponsWithTime(sender, new OtpErlangList(retval));
 					}
 				}
 				break;
@@ -691,13 +700,13 @@ public class MessageHandler extends Thread {
 			 */
 			default: {
 				logger.fatal("Undefined message\n");
-				this.conn.send(sender, new OtpErlangAtom("undef"));
+				sendResponsWithTime(sender, new OtpErlangAtom("undef"));
 				break;
 			}
 			}
 		} catch (IOException e) {
 			try {
-				this.conn.send(sender, new OtpErlangAtom("error"));
+				sendResponsWithTime(sender, new OtpErlangAtom("error"));
 			} catch (IOException e1) {
 				logger.fatal(e1.getMessage());
 				System.exit(1);
@@ -714,17 +723,17 @@ public class MessageHandler extends Thread {
 			OtpErlangTuple args = ((OtpErlangTuple) msg.elementAt(2));
 			id = ((OtpErlangLong) args.elementAt(0)).intValue();
 		} catch (OtpErlangRangeException e) {
-			this.conn.send(sender, new OtpErlangAtom("badid"));
+			sendResponsWithTime(sender, new OtpErlangAtom("badid"));
 			return;
 		}
 		if (!motes_observer.containsKey(id)) {
-			this.conn.send(sender, new OtpErlangAtom("not_listened"));
+			sendResponsWithTime(sender, new OtpErlangAtom("not_listened"));
 		} else {
 			String retval = ((SerialObserver)(motes_observer.get(id))).nextMessage();
 			if (retval==null) {
-				this.conn.send(sender, new OtpErlangList(""));
+				sendResponsWithTime(sender, new OtpErlangList(""));
 			} else {
-				this.conn.send(sender, new OtpErlangList(retval));
+				sendResponsWithTime(sender, new OtpErlangList(retval));
 			}
 		}
 	}

@@ -29,7 +29,7 @@ import com.ericsson.otp.erlang.OtpPeer;
 import com.ericsson.otp.erlang.OtpSelf;
 
 @SuppressWarnings("serial")
-@ClassDescription("Contiki Socket Control")
+@ClassDescription("Nifty Control Plugin")
 @PluginType(PluginType.SIM_CONTROL_PLUGIN)
 public class SocketControlPlugin extends VisPlugin {
 	//private static Logger logger = Logger.getLogger(SocketControlPlugin.class);
@@ -51,7 +51,7 @@ public class SocketControlPlugin extends VisPlugin {
 	private MessageHandler handler;
 
 	public SocketControlPlugin(Simulation sim, Cooja gui) {
-		super("Contiki Socket Control", gui, false);
+		super("Nifty Control Plugin", gui, false);
 
 		if (Cooja.isVisualized()) {
 			Box northBox = Box.createHorizontalBox();
@@ -60,7 +60,7 @@ public class SocketControlPlugin extends VisPlugin {
 			Box mainBox = Box.createHorizontalBox();
 			mainBox.setBorder(BorderFactory.createEmptyBorder(0, 5, 5, 5));
 
-			label = new JLabel("Cooja Erlang Node");
+			label = new JLabel("Nifty Control Plugin: connected");
 			label.setPreferredSize(new Dimension(LABEL_WIDTH, LABEL_HEIGHT));
 			mainBox.add(BorderLayout.CENTER, label);
 
@@ -77,7 +77,7 @@ public class SocketControlPlugin extends VisPlugin {
 			sim.setRandomSeed(this.MAGIC_NUMBER);
 		} catch (IOException | OtpAuthException e) {
 			if (Cooja.isVisualized()) {
-				label.setText("Cooja Erlang Node: not connected");
+				label.setText("Nifty Control Plugin: not connected");
 			}
 		}
 	}
@@ -93,6 +93,4 @@ public class SocketControlPlugin extends VisPlugin {
 			this.conn.close();
 		}
 	}
-
-
 }

@@ -17,7 +17,8 @@
 			nifty_remotecall,
 			nifty_tags,
 			nifty_types,
-			nifty_utils]},
+			nifty_utils,
+			nifty_xmlhelper]},
 		{applications,[kernel,stdlib,compile]}
 	]
 }.
