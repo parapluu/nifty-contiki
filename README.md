@@ -20,4 +20,4 @@ and include Nifty Contiki in your ERL_LIBS path.
 ## Dependencies
 + **libclang** including the header files
 + **clang** compiler
-+ 
+
