@@ -9,7 +9,8 @@
 
 -module(nifty_compiler).
 -export([render/4,
-	 compile/3]).
+	 compile/3,
+	 render_with_errors/2]).
 
 -type reason() :: atom().
 -type options() :: proplists:proplist().

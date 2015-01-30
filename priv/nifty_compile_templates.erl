@@ -20,4 +20,10 @@ main(_) ->
 		 ok;
 	     E2 ->
 		 io:format("Error: ~p~n", [E2])
+	 end,
+    ok = case erlydtl:compile("templates/simscript.tpl", nifty_simscript_template, Options) of 
+	     {ok, nifty_simscript_template} ->
+		 ok;
+	     E3 ->
+		 io:format("Error: ~p~n", [E3])
 	 end.
