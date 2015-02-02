@@ -6,7 +6,7 @@ tags: [about]
 share: true
 ---
 
-Nifty os a property based testing framework for IoT systems. It
+Nifty is a property based testing framework for IoT systems. It
 features test case execution in Cooja, a C function interface generator for Contiki, and an
 standalone test case generator.
 The C function interface generator allows you to test the C API of your IoT software as it is
