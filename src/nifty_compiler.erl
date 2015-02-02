@@ -55,15 +55,17 @@ render(InterfaceFile, ModuleName, CFlags, Options) ->
     end.
 
 render_with_errors(Template, Vars) ->
+    %% {ok, Output} = Template:render(Vars),
+    %% Output.
     try Template:render(Vars) of
-	{ok, Output} -> Output;
-	{error, Err} -> 
-	    io:format("Error during rendering of template ~p:~n~p~nPlease report the error~n", [Template, Err]),
-	    throw(nifty_render_error)
+    	{ok, Output} -> Output;
+    	{error, Err} -> 
+    	    io:format("Error during rendering of template ~p:~n~p~nPlease report the error~n", [Template, Err]),
+    	    throw(nifty_render_error)
     catch
-	ET:E ->
-	    io:format("~p:~p during rendering of temlate ~p:~nVars: ~n~p~nPlease report the error~n", [ET, E, Template, Vars]),
-	    throw(nifty_render_error)
+    	ET:E ->
+    	    io:format("~p:~p during rendering of temlate ~p:~nVars: ~n~p~nPlease report the error~n", [ET, E, Template, Vars]),
+    	    throw(nifty_render_error)
     end.
 
 

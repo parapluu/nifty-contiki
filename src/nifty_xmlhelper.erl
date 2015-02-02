@@ -1,6 +1,8 @@
 -module(nifty_xmlhelper).
 -export([parse_xml/1, export_xml/2]).
--export([new_mote/1, mote_set_position/3, mote_set_id/3, add_mote/2, add_script/2, remove_controler/1]).
+-export([new_mote/1, mote_set_position/3, mote_set_id/3, 
+	 add_mote/2, add_script/2, remove_controler/1, 
+	 extrace_motes/1]).
 
 -export([get_node/2, get_all_nodes/2, get_interface_key/3]).
 
@@ -141,3 +143,19 @@ update_node([{K, _, _}|T], Name, Value, Acc) when K=:=Name->
     lists:reverse([Value|Acc]) ++ T;
 update_node([H|T], Name, Value, Acc) ->
     update_node(T, Name, Value, [H|Acc]).
+
+extrace_motes(Root = {_,_,C}) ->
+    {_,_,SC} = get_node(C, simulation),
+    MoteNodes = get_all_nodes(SC, mote),
+    lists:map(get_extract_function(Root), MoteNodes).
+
+get_extract_function(R) ->
+    fun ({_,_,C}) ->
+	    MoteType = get_mote_type(C),
+	    InterfaceKey = get_interface_key(R, MoteType, "ID"),
+	    Configs = get_all_nodes(C, interface_config),
+	    [{_,_,IdConfig}|_] = lists:filter(fun ({_,_,[Interface|_]}) -> strip(Interface) =:= strip(InterfaceKey) end,
+				    Configs),
+	    {_,_,[Id]} = get_node(IdConfig, id),
+	    list_to_integer(Id)
+    end.

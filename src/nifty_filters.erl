@@ -33,7 +33,10 @@
 	 discard_restrict/1,
 	 loopcounter/2, 
 
-	 small_size/1]).
+	 small_size/1,
+	 %% string helper
+	 stripnewline/1,
+	 niceint/1]).
 
 -spec norm_type(string()) -> string().
 norm_type(Type) ->
@@ -183,3 +186,14 @@ small_size(Options) ->
 		    true
 	    end
     end.
+
+-spec stripnewline(string()) -> string().
+stripnewline(String) ->
+    lists:droplast(String).
+
+-spec niceint(integer()) -> string().
+niceint(Int) ->
+    format("~B", [Int]).
+
+format(Format, Args) ->
+    lists:flatten(io_lib:format(Format, Args)).

@@ -44,16 +44,16 @@ retrieve_events({_, Opts}) ->
     end.
 
 events_to_calls(Events) ->
-    events_to_calls(Events, []).
+    events_to_calls(lists:reverse(Events), [], 0).
 
-events_to_calls([], Acc) -> Acc;
-events_to_calls([A,C|Tail], Acc) ->
+events_to_calls([], Acc, _) -> lists:reverse(Acc);
+events_to_calls([C,A|Tail], Acc, LastTime) ->
     {answer, Time, RetVal} = A,
     {Call, Args} = case C of
 		       {call, {_, RCall, RArgs}} -> {RCall, RArgs};
 		       {call, {_, RCall}} -> {RCall, {}}
 		   end,
-    events_to_calls(Tail, [{Time, Call, Args, RetVal}|Acc]).
+    events_to_calls(Tail, [{Time, (Time-LastTime) div 1000, Call, Args, RetVal}|Acc], Time).
 
 start_recorder() ->
     spawn(fun() -> recorder_loop([]) end).
@@ -88,40 +88,41 @@ make_simfile_static(File, Events, Outfile) ->
     Calls = events_to_calls(Events),
     {InitCalls, RuntimeCalls} = get_init_calls(Calls),
     OriginalRoot = nifty_xmlhelper:parse_xml(File),
-    {InitializedRoot, Motes} = build_initialization(OriginalRoot, InitCalls),
+    InitializedRoot = build_initialization(OriginalRoot, InitCalls),
+    Motes = nifty_xmlhelper:extrace_motes(InitializedRoot),
     Script = build_runtimscript(RuntimeCalls, Motes),
     StaticRoot = nifty_xmlhelper:add_script(InitializedRoot, Script),
     FinalRoot = nifty_xmlhelper:remove_controler(StaticRoot),
     nifty_xmlhelper:export_xml(FinalRoot, Outfile).
 
 get_init_calls(Calls) ->
-    {L, R} = lists:partition(fun ({Time, _, _, _}) -> Time=:=0 end, Calls),
+    {L, R} = lists:partition(fun ({Time, _, _, _, _}) -> Time=:=0 end, Calls),
     {L, R}.
 
 build_initialization(Root, Calls) ->
-    {Motes, Ids} = build_motes(Root, Calls),
-    {lists:foldl(fun (Mote, D) -> nifty_xmlhelper:add_mote(D, Mote) end, Root, Motes), Ids}.
+    Motes = build_motes(Root, Calls),
+    lists:foldl(fun (Mote, D) -> nifty_xmlhelper:add_mote(D, Mote) end, Root, Motes).
 
 build_motes(D, Calls) ->
-    build_motes(D, Calls, dict:new(), []).
+    build_motes(D, Calls, dict:new()).
 
-build_motes(_, [], Acc, Ids) ->
-    {lists:map(fun ({_, V}) -> V end, dict:to_list(Acc)), Ids};
-build_motes(D, [C|T], Acc, Ids) ->
-    {NewAcc, NewIds} = case C of
-			   {_, mote_add, {Type}, {ok, MoteId}} ->
+build_motes(_, [], Acc) ->
+    lists:map(fun ({_, V}) -> V end, dict:to_list(Acc));
+build_motes(D, [C|T], Acc) ->
+    NewAcc = case C of
+			   {_, _, mote_add, {Type}, {ok, MoteId}} ->
 			       MoteNoId = nifty_xmlhelper:new_mote(Type),
 			       Mote = nifty_xmlhelper:mote_set_id(D, MoteNoId, MoteId),
-			       {dict:store(MoteId, Mote, Acc), [MoteId | Ids]};
-			   {_, mote_set_pos, {MoteId, X, Y, Z}, _} ->
+			       dict:store(MoteId, Mote, Acc);
+			   {_, _, mote_set_pos, {MoteId, X, Y, Z}, _} ->
 			       MoteNoPos = dict:fetch(MoteId, Acc),
 			       Mote = nifty_xmlhelper:mote_set_position(D, MoteNoPos, {X,Y,Z}),
-			       {dict:store(MoteId, Mote, Acc), Ids};
+			       dict:store(MoteId, Mote, Acc);
 			   _ ->
 			       %% io:format("Call: ~p~n", [C]),
-			       {Acc, Ids}
+			       Acc
 		       end,
-    build_motes(D, T, NewAcc, NewIds).
+    build_motes(D, T, NewAcc).    
 
 build_runtimscript(RuntimeCalls, Motes) ->
     RenderVars = [{"init_motes", Motes},
