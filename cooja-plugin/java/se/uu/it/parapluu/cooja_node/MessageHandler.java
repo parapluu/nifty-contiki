@@ -10,6 +10,7 @@ package se.uu.it.parapluu.cooja_node;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.Observer;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -24,6 +25,8 @@ import org.contikios.cooja.TimeEvent;
 import org.contikios.cooja.interfaces.LED;
 import org.contikios.cooja.interfaces.Radio;
 import org.contikios.cooja.interfaces.SerialPort;
+import org.contikios.cooja.mote.memory.MemoryInterface.Symbol;
+import org.contikios.cooja.mote.memory.VarMemory;
 import org.contikios.cooja.radiomediums.UDGM;
 
 import com.ericsson.otp.erlang.OtpAuthException;
@@ -225,6 +228,18 @@ public class MessageHandler extends Thread {
 			case "mote_read":
 				handle_mote_read(sender, msg);
 				break;
+			case "mote_mem_read":
+				handle_mote_mem_read(sender, msg);
+				break;
+			case "mote_mem_write":
+				handle_mote_mem_write(sender, msg);
+				break;
+			case "mote_mem_vars":
+				handle_mote_mem_vars(sender, msg);
+				break;
+			case "mote_mem_symbol":
+				handle_mote_mem_symbol(sender, msg);
+				break;
 			case "msg_wait":
 				handle_msg_wait(sender, msg);
 				break;
@@ -246,6 +261,112 @@ public class MessageHandler extends Thread {
 			}
 			logger.fatal(e.getMessage());
 			System.exit(1);
+		}
+	}
+
+	private void handle_mote_mem_symbol(OtpErlangPid sender, OtpErlangTuple msg)
+			throws IOException{
+		int id;
+		OtpErlangTuple args = ((OtpErlangTuple) msg.elementAt(2));
+		try {
+			/* unpack message */
+			id = ((OtpErlangLong) args.elementAt(0)).intValue();
+			String varname = ((OtpErlangString) args.elementAt(1)).stringValue(); 
+			Mote mote = simulation.getMoteWithID(id);
+			/* get memory */
+			VarMemory mem = new VarMemory(mote.getMemory());
+			if (mem.variableExists(varname)) {
+				Symbol sym  = mem.getVariable(varname);
+				OtpErlangLong addr = new OtpErlangLong(sym.addr);
+				OtpErlangLong size = new OtpErlangLong(sym.size);
+				OtpErlangString name = new OtpErlangString(sym.name);
+				OtpErlangObject retval[] = new OtpErlangObject[3];
+				retval[0] = addr;
+				retval[1] = size;
+				retval[2] = name;
+				sendResponsWithTime(sender, new OtpErlangTuple(retval));
+			} else {
+				sendResponsWithTime(sender, new OtpErlangAtom("badname"));	
+			}
+		} catch (OtpErlangRangeException e) {
+			sendResponsWithTime(sender, new OtpErlangAtom("badid"));
+		}
+	}
+
+	private void handle_mote_mem_vars(OtpErlangPid sender, OtpErlangTuple msg) 
+			throws IOException{
+		int id;
+		OtpErlangTuple args = ((OtpErlangTuple) msg.elementAt(2));
+		try {
+			/* unpack message */
+			id = ((OtpErlangLong) args.elementAt(0)).intValue();
+			Mote mote = simulation.getMoteWithID(id);
+			/* get memory */
+			VarMemory mem = new VarMemory(mote.getMemory());
+			
+			Set<String> varnames = mem.getVariableNames();
+			OtpErlangObject retval[] = new OtpErlangObject[varnames.size()];
+			int i=0;
+			for (String name : varnames) {
+				retval[i++] = new OtpErlangString(name);
+			}
+			sendResponsWithTime(sender, new OtpErlangList(retval));
+		} catch (OtpErlangRangeException e) {
+			sendResponsWithTime(sender, new OtpErlangAtom("badid"));
+		}
+	}
+
+	private void handle_mote_mem_write(OtpErlangPid sender, OtpErlangTuple msg)
+			throws IOException {
+		int id;
+		OtpErlangTuple args = ((OtpErlangTuple) msg.elementAt(2));
+		try {
+			/* unpack message */
+			id = ((OtpErlangLong) args.elementAt(0)).intValue();
+			OtpErlangTuple var_obj = ((OtpErlangTuple) args.elementAt(1));
+			long addr = ((OtpErlangLong) var_obj.elementAt(0)).longValue();
+			int size = ((OtpErlangLong) var_obj.elementAt(1)).intValue();
+			/* get mote memory */
+			Mote mote = simulation.getMoteWithID(id);
+			VarMemory mem = new VarMemory(mote.getMemory());
+			byte data[] = mem.getByteArray(addr, size);
+			OtpErlangObject retval[] = new OtpErlangObject[data.length];
+			for (int i=0; i<data.length; i++) {
+				retval[i] = new OtpErlangInt(data[i]);
+			}
+			sendResponsWithTime(sender, new OtpErlangList(retval));
+		} catch (OtpErlangRangeException e) {
+			sendResponsWithTime(sender, new OtpErlangAtom("badid"));
+		}
+	}
+
+	private void handle_mote_mem_read(OtpErlangPid sender, OtpErlangTuple msg)
+			throws IOException {
+		int id;
+		OtpErlangTuple args = ((OtpErlangTuple) msg.elementAt(2));
+		try {
+			/* unpack message */
+			id = ((OtpErlangLong) args.elementAt(0)).intValue();
+			OtpErlangTuple var_obj = ((OtpErlangTuple) args.elementAt(1));
+			long addr = ((OtpErlangLong) var_obj.elementAt(0)).longValue();
+			int size = ((OtpErlangLong) var_obj.elementAt(1)).intValue();
+			OtpErlangList data_list = ((OtpErlangList) args.elementAt(2));
+			OtpErlangObject data_obj[] = data_list.elements();
+			if (size!=data_obj.length) {
+				sendResponsWithTime(sender, new OtpErlangAtom("size_mismatch"));
+			}
+			/* get mote memory */
+			Mote mote = simulation.getMoteWithID(id);
+			VarMemory mem = new VarMemory(mote.getMemory());
+			byte data[] = new byte[data_obj.length];
+			for (int i=0;i<data_obj.length; i++) {
+				data[i] = ((OtpErlangLong)data_obj[i]).byteValue();
+			}
+			/* write */
+			mem.setByteArray(addr, data);
+			sendResponsWithTime(sender, new OtpErlangAtom("ok"));
+		} catch (OtpErlangRangeException e) {
+			sendResponsWithTime(sender, new OtpErlangAtom("badid"));
 		}
 	}
 
