@@ -39,7 +39,7 @@ write_mem(char* stream) {
     *ptr = hexstrtochar(data, &data);
     ptr++;
   }
-  return snprintf(nifty_buffer, 100, "ok");
+  return snprintf(nifty_buffer, {{maxbuf}}, "ok");
 }
 
 static int
@@ -49,7 +49,7 @@ allocate_mem(char* stream) {
   void* ptr;
   size = strtoul(stream, &stup, 10);
   ptr = malloc(size);
-  return snprintf(nifty_buffer, 100, "%p", ptr);
+  return snprintf(nifty_buffer, {{maxbuf}}, "%p", ptr);
 }
 
 static int
@@ -86,7 +86,7 @@ nifty_sizeof(char* stream) {
 	{% endfor %}
 {% endwith %}
 {% endif %}
-  return snprintf(nifty_buffer, 100, "undef");
+  return snprintf(nifty_buffer, {{maxbuf}}, "undef");
 }
 
 static int
@@ -94,5 +94,5 @@ free_mem(char* stream) {
   void* ptr;
   ptr = (void*)strtoull(stream, &stream, 16);
   free(ptr);
-  return snprintf(nifty_buffer, 100, "ok");
+  return snprintf(nifty_buffer, {{maxbuf}}, "ok");
 }
