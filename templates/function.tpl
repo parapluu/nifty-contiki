@@ -122,7 +122,7 @@ niftycall_{{name}}(char* args) {
 
 void
 save_serial(char* buffer, int length) {
-  if (length>100) {
+  if (length>{{maxbuf}}) {
     printf("fail\n");
   } else {
     printf("%.*s\n", length, buffer);
