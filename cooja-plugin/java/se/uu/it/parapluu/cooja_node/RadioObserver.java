@@ -76,7 +76,6 @@ public class RadioObserver implements Observer {
 		if (conn == null) {
 			return;
 		}
-
 		messages.addLast(decode_packet(conn));
 	}
 

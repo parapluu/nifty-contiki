@@ -32,6 +32,8 @@
 	 radio_listen/2,
 	 radio_unlisten/1,
 	 radio_get_messages/1,
+	 radio_no_dublicates/1,
+	 radio_no_airshots/1,
 	 %% motes
 	 mote_types/1,
 	 mote_add/2,
@@ -455,6 +457,25 @@ handler_timeout({_, Opts}) ->
     V.
 
 %% high-level stuff
+radio_no_dublicates(Msg) ->
+     radio_no_dublicates(Msg, []).
+
+radio_no_dublicates([], Acc) -> 
+    lists:reverse(Acc);
+radio_no_dublicates([M|T], []) ->
+    radio_no_dublicates(T, [M]);
+radio_no_dublicates([M|T], Acc = [Last|_]) ->
+    case Last=:=M of
+	true ->
+	    radio_no_dublicates(T, Acc);
+	false ->
+	    radio_no_dublicates(T, [M|Acc])
+    end.
+
+radio_no_airshots(Msg) ->
+    lists:filter(fun ({_, D, _}) ->
+			  D=/=[] end, Msg).
+
 next_event(Handler, Mote) ->
     next_event(Handler, Mote, handler_timeout(Handler)).
 
