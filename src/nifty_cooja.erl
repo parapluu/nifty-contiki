@@ -464,10 +464,11 @@ radio_no_dublicates([], Acc) ->
     lists:reverse(Acc);
 radio_no_dublicates([M|T], []) ->
     radio_no_dublicates(T, [M]);
-radio_no_dublicates([M|T], Acc = [Last|_]) ->
-    case Last=:=M of
+radio_no_dublicates([M={S1, D1, C1}|T], Acc = [{S2, D2, C2}|AccTail]) ->
+    case C1=:=C2 andalso S1=:=S2 of
 	true ->
-	    radio_no_dublicates(T, Acc);
+	    NewDest = lists:usort(D1++D2),
+	    radio_no_dublicates(T, [{S1, NewDest, C1}|AccTail]);
 	false ->
 	    radio_no_dublicates(T, [M|Acc])
     end.
