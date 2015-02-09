@@ -32,6 +32,7 @@ import org.contikios.cooja.radiomediums.UDGM;
 import com.ericsson.otp.erlang.OtpAuthException;
 import com.ericsson.otp.erlang.OtpConnection;
 import com.ericsson.otp.erlang.OtpErlangAtom;
+import com.ericsson.otp.erlang.OtpErlangBinary;
 import com.ericsson.otp.erlang.OtpErlangDouble;
 import com.ericsson.otp.erlang.OtpErlangExit;
 import com.ericsson.otp.erlang.OtpErlangInt;
@@ -271,7 +272,7 @@ public class MessageHandler extends Thread {
 		try {
 			/* unpack message */
 			id = ((OtpErlangLong) args.elementAt(0)).intValue();
-			String varname = ((OtpErlangString) args.elementAt(1)).stringValue(); 
+			String varname = ((OtpErlangString)(args.elementAt(1))).stringValue(); 
 			Mote mote = simulation.getMoteWithID(id);
 			/* get memory */
 			VarMemory mem = new VarMemory(mote.getMemory());
@@ -326,15 +327,17 @@ public class MessageHandler extends Thread {
 			OtpErlangTuple var_obj = ((OtpErlangTuple) args.elementAt(1));
 			long addr = ((OtpErlangLong) var_obj.elementAt(0)).longValue();
 			int size = ((OtpErlangLong) var_obj.elementAt(1)).intValue();
+			byte data[] = ((OtpErlangBinary)args.elementAt(2)).binaryValue();
+			if (size!=data.length) {
+				sendResponsWithTime(sender, new OtpErlangAtom("size mismatch"));
+				return;
+			}
 			/* get mote memory */
 			Mote mote = simulation.getMoteWithID(id);
 			VarMemory mem = new VarMemory(mote.getMemory());
-			byte data[] = mem.getByteArray(addr, size);
-			OtpErlangObject retval[] = new OtpErlangObject[data.length];
-			for (int i=0; i<data.length; i++) {
-				retval[i] = new OtpErlangInt(data[i]);
-			}
-			sendResponsWithTime(sender, new OtpErlangList(retval));
+			/* write */
+			mem.setByteArray(addr, data);
+			sendResponsWithTime(sender, new OtpErlangAtom("ok"));
 		} catch (OtpErlangRangeException e) {
 			sendResponsWithTime(sender, new OtpErlangAtom("badid"));
 		}
@@ -350,21 +353,11 @@ public class MessageHandler extends Thread {
 			OtpErlangTuple var_obj = ((OtpErlangTuple) args.elementAt(1));
 			long addr = ((OtpErlangLong) var_obj.elementAt(0)).longValue();
 			int size = ((OtpErlangLong) var_obj.elementAt(1)).intValue();
-			OtpErlangList data_list = ((OtpErlangList) args.elementAt(2));
-			OtpErlangObject data_obj[] = data_list.elements();
-			if (size!=data_obj.length) {
-				sendResponsWithTime(sender, new OtpErlangAtom("size_mismatch"));
-			}
 			/* get mote memory */
 			Mote mote = simulation.getMoteWithID(id);
 			VarMemory mem = new VarMemory(mote.getMemory());
-			byte data[] = new byte[data_obj.length];
-			for (int i=0;i<data_obj.length; i++) {
-				data[i] = ((OtpErlangLong)data_obj[i]).byteValue();
-			}
-			/* write */
-			mem.setByteArray(addr, data);
-			sendResponsWithTime(sender, new OtpErlangAtom("ok"));
+			byte data[] = mem.getByteArray(addr, size);
+			sendResponsWithTime(sender, new OtpErlangBinary(data));
 		} catch (OtpErlangRangeException e) {
 			sendResponsWithTime(sender, new OtpErlangAtom("badid"));
 		}

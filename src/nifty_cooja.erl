@@ -49,6 +49,10 @@
 	 mote_hw_events/2,
 	 mote_read/2,
 	 mote_read_s/2,
+	 mote_mem_vars/2,
+	 mote_mem_symbol/3,
+	 mote_mem_read/3,
+	 mote_mem_write/4,
 	 msg_wait/2,
 	 get_last_event/2,
 	 %% nifty interface
@@ -434,6 +438,22 @@ mote_read(Handler, Mote) ->
 
 mote_read_s(Handler, Mote) ->
     send_msg(Handler, {self(), mote_read_s, {Mote}}),
+    receive_answer(Handler).
+
+mote_mem_vars(Handler, Mote) ->
+    send_msg(Handler, {self(), mote_mem_vars, {Mote}}),
+    receive_answer(Handler).
+
+mote_mem_symbol(Handler, Mote, SymbolName) ->
+    send_msg(Handler, {self(), mote_mem_symbol, {Mote, SymbolName}}),
+    receive_answer(Handler).
+
+mote_mem_read(Handler, Mote, Symbol) ->
+    send_msg(Handler, {self(), mote_mem_read, {Mote, Symbol}}),
+    receive_answer(Handler).
+
+mote_mem_write(Handler, Mote, Symbol, Data) ->
+    send_msg(Handler, {self(), mote_mem_write, {Mote, Symbol, Data}}),
     receive_answer(Handler).
 
 msg_wait(Handler, Msg) ->
