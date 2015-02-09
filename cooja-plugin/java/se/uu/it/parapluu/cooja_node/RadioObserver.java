@@ -11,14 +11,16 @@ import org.contikios.cooja.RadioMedium;
 import org.contikios.cooja.RadioPacket;
 import org.contikios.cooja.Simulation;
 import org.contikios.cooja.interfaces.Radio;
-import org.contikios.cooja.plugins.analyzers.FragHeadPacketAnalyzer;
-import org.contikios.cooja.plugins.analyzers.ICMPv6Analyzer;
-import org.contikios.cooja.plugins.analyzers.IEEE802154Analyzer;
-import org.contikios.cooja.plugins.analyzers.IPHCPacketAnalyzer;
-import org.contikios.cooja.plugins.analyzers.IPv6PacketAnalyzer;
-import org.contikios.cooja.plugins.analyzers.PacketAnalyzer;
-import org.contikios.cooja.util.StringUtils;
 
+import se.uu.it.parapluu.cooja_node.analyzers.FragHeadPacketAnalyzer;
+import se.uu.it.parapluu.cooja_node.analyzers.ICMPv6Analyzer;
+import se.uu.it.parapluu.cooja_node.analyzers.IEEE802154Analyzer;
+import se.uu.it.parapluu.cooja_node.analyzers.IPHCPacketAnalyzer;
+import se.uu.it.parapluu.cooja_node.analyzers.IPv6PacketAnalyzer;
+import se.uu.it.parapluu.cooja_node.analyzers.PacketAnalyzer;
+
+import com.ericsson.otp.erlang.OtpErlangAtom;
+import com.ericsson.otp.erlang.OtpErlangBinary;
 import com.ericsson.otp.erlang.OtpErlangInt;
 import com.ericsson.otp.erlang.OtpErlangList;
 import com.ericsson.otp.erlang.OtpErlangObject;
@@ -82,8 +84,6 @@ public class RadioObserver implements Observer {
 		byte[] data;
 		RadioPacket radio_packet = conn.getSource().getLastPacketTransmitted();
 
-		String encoded_data;
-
 		if (radio_packet == null) {
 			data = null;
 		} else if (radio_packet instanceof ConvertedRadioPacket) {
@@ -96,33 +96,28 @@ public class RadioObserver implements Observer {
 			data = "[unknown data]".getBytes();
 		}
 
-		StringBuilder brief = new StringBuilder();
-		StringBuilder verbose = new StringBuilder();
+		LinkedList<OtpErlangObject> analysis = new LinkedList<OtpErlangObject>();
 
 		/* default analyzer */
 		PacketAnalyzer.Packet packet = new PacketAnalyzer.Packet(data,
 				PacketAnalyzer.MAC_LEVEL);
 
-		if (analyzePacket(packet, brief, verbose)) {
+		if (analyzePacket(packet, analysis)) {
 			if (packet.hasMoreData()) {
 				byte[] payload = packet.getPayload();
-				brief.append(StringUtils.toHex(payload, 4));
-				if (verbose.length() > 0) {
-					verbose.append("<p>");
-				}
-				verbose.append("<b>Payload (").append(payload.length)
-						.append(" bytes)</b><br><pre>")
-						.append(StringUtils.hexDump(payload)).append("</pre>");
-			}
-			encoded_data = (data.length < 100 ? (data.length < 10 ? "  " : " ")
-					: "") + data.length + ": " + brief;
-			if (verbose.length() > 0) {
+				OtpErlangObject tpl_payload[] = new OtpErlangObject[2];
+				tpl_payload[0] = new OtpErlangAtom("payload");
+				tpl_payload[1] = new OtpErlangBinary(payload);
+				analysis.add(new OtpErlangTuple(tpl_payload));
 			}
 		} else {
-			encoded_data = data.length + ": 0x" + StringUtils.toHex(data, 4);
+			OtpErlangObject tpl_payload[] = new OtpErlangObject[2];
+			tpl_payload[0] = new OtpErlangAtom("payload");
+			tpl_payload[1] = new OtpErlangBinary(data);
+			analysis.add(new OtpErlangTuple(tpl_payload));
 		}
 
-		OtpErlangObject[] msg = new OtpErlangObject[5];
+		OtpErlangObject[] msg = new OtpErlangObject[3];
 
 		OtpErlangInt source = new OtpErlangInt(conn.getSource().getMote()
 				.getID());
@@ -134,15 +129,19 @@ public class RadioObserver implements Observer {
 
 		msg[0] = source;
 		msg[1] = new OtpErlangList(destination);
-		msg[2] = new OtpErlangList(encoded_data);
-		msg[3] = new OtpErlangList(data.toString());
-		msg[4] = new OtpErlangList(packet.getPayload().toString());
+
+		OtpErlangObject decoded_packet[] = new OtpErlangObject[analysis.size()];
+		int i = 0;
+		for (OtpErlangObject e : analysis) {
+			decoded_packet[i++] = e;
+		}
+		msg[2] = new OtpErlangList(decoded_packet);
 
 		return new OtpErlangTuple(msg);
 	}
 
 	private boolean analyzePacket(PacketAnalyzer.Packet packet,
-			StringBuilder brief, StringBuilder verbose) {
+			LinkedList<OtpErlangObject> analysis) {
 		if (analyzers == null)
 			return false;
 		try {
@@ -152,18 +151,13 @@ public class RadioObserver implements Observer {
 				for (int i = 0; i < analyzers.size(); i++) {
 					PacketAnalyzer analyzer = analyzers.get(i);
 					if (analyzer.matchPacket(packet)) {
-						int res = analyzer
-								.analyzePacket(packet, brief, verbose);
-						if (packet.hasMoreData() && brief.length() > 0) {
-							brief.append('|');
-							verbose.append("<br>");
-						}
+						int res = analyzer.analyzePacket(packet, analysis);
 						if (res != PacketAnalyzer.ANALYSIS_OK_CONTINUE) {
 							/*
 							 * this was the final or the analysis failed - no
 							 * analyzable payload possible here...
 							 */
-							return brief.length() > 0;
+							return analysis.size() > 0;
 						}
 						/* continue another round if more bytes left */
 						analyze = packet.hasMoreData();
@@ -174,7 +168,7 @@ public class RadioObserver implements Observer {
 		} catch (Exception e) {
 			return false;
 		}
-		return brief.length() > 0;
+		return analysis.size() > 0;
 	}
 
 	public LinkedList<OtpErlangObject> getMessages() {
