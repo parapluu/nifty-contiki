@@ -467,7 +467,7 @@ next_event(Handler, Mote, T) ->
 	badid ->
 	    badid;
 	no_event ->
-	    ok = simulation_step(Handler, Handler, StepSize),
+	    ok = simulation_step(Handler, StepSize),
 	    next_event(Handler, Mote, T-StepSize);
 	E ->
 	    E
