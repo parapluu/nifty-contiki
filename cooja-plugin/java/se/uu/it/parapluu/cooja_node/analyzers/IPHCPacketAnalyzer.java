@@ -487,11 +487,7 @@ public class IPHCPacketAnalyzer extends PacketAnalyzer {
     }
 
 
-	OtpErlangObject opts[] = new OtpErlangObject[iphc_opts.size()];
-	int i = 0;
-	for (OtpErlangObject o : iphc_opts) {
-		opts[i++] = o;
-	}
+	OtpErlangObject opts[] =iphc_opts.toArray(new OtpErlangObject[iphc_opts.size()]); 
 	analysis.add(PacketAnalyzer.make_opt("iphc", new OtpErlangList(opts)));
     
     packet.lastDispatch = (byte) (proto & 0xff);

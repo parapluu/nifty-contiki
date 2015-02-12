@@ -198,11 +198,7 @@ public class IEEE802154Analyzer extends PacketAnalyzer {
 		opts.add(PacketAnalyzer.make_opt("srcaddr", new OtpErlangString(addrModeNames[fcfSrcAddrMode])));
 
 		
-		OtpErlangObject objs[] = new OtpErlangObject[opts.size()];
-		int i = 0;
-		for (OtpErlangObject o : opts) {
-			objs[i++] = o;
-		}
+		OtpErlangObject objs[] = opts.toArray(new OtpErlangObject[opts.size()]);
 		analysis.add(PacketAnalyzer.make_opt("15.4", new OtpErlangList(objs)));
 		
 		/* update packet */
