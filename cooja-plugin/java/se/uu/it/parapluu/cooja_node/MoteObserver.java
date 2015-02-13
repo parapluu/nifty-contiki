@@ -9,7 +9,6 @@
 package se.uu.it.parapluu.cooja_node;
 
 import java.util.LinkedList;
-import java.util.Objects;
 import java.util.Observable;
 import java.util.Observer;
 import java.util.concurrent.ConcurrentHashMap;
@@ -19,6 +18,13 @@ import org.contikios.cooja.interfaces.LED;
 import org.contikios.cooja.interfaces.Radio;
 import org.contikios.cooja.interfaces.Radio.RadioEvent;
 
+import se.uu.it.parapluu.cooja_node.analyzers.PacketAnalyzer;
+
+import com.ericsson.otp.erlang.OtpErlangAtom;
+import com.ericsson.otp.erlang.OtpErlangLong;
+import com.ericsson.otp.erlang.OtpErlangObject;
+import com.ericsson.otp.erlang.OtpErlangTuple;
+
 public class MoteObserver implements Observer {
 	
 	
@@ -26,12 +32,12 @@ public class MoteObserver implements Observer {
 	private LED led;
 	private Radio radio;
 	
-	private ConcurrentHashMap<Integer, LinkedList<String[]>> events;
+	private ConcurrentHashMap<Integer, LinkedList<OtpErlangObject>> events;
 	private int id;
 	private Simulation simulation;
 
 	public MoteObserver(
-			ConcurrentHashMap<Integer, LinkedList<String[]>> motes_hw_events, LED led,
+			ConcurrentHashMap<Integer, LinkedList<OtpErlangObject>> motes_hw_events, LED led,
 			Radio radio, int id, Simulation simulation) {
 		super();
 		this.led = led;
@@ -43,6 +49,7 @@ public class MoteObserver implements Observer {
 
 	@Override
 	public void update(Observable o, Object arg) {
+		OtpErlangObject state = null;
 		if (o.getClass() == led.getClass()) {
 			String r = "";
 			if (led.isYellowOn()) {
@@ -54,53 +61,45 @@ public class MoteObserver implements Observer {
 			if (led.isRedOn()) {
 				r += "r";
 			}
-			String[] rv = new String[3];
-			rv[0] = "led";
-			rv[1] = r;
-			rv[2] = Objects.toString(simulation.getSimulationTime());
-			LinkedList<String[]> tmp = events.get(id); 
-			tmp.add(rv);
-			events.replace(id, tmp);
+			state = PacketAnalyzer.make_opt("led", new OtpErlangAtom(r));
 		} else if (o.getClass() == radio.getClass()) {
 			RadioEvent e = radio.getLastEvent();
-			String[] rv = new String[3];
-			rv[0] = "radio";
-			rv[2] = Objects.toString(simulation.getSimulationTime());
+			OtpErlangObject[] data = new OtpErlangObject[2];
+			data[0] = new OtpErlangAtom("radio");
 			if (e == RadioEvent.HW_ON || e == RadioEvent.HW_OFF) {
 				if (radio.isRadioOn()) {
-					rv[1] = "on";
+					data[1] = new OtpErlangAtom("on");
 				} else {
-					rv[1] = "off";
+					data[1] = new OtpErlangAtom("off");
 				}
 			} else if (e == RadioEvent.TRANSMISSION_STARTED) {
-				rv[1] = "transmission_started";
+				data[1] = new OtpErlangAtom("transmission_started");
 			} else if (e == RadioEvent.TRANSMISSION_FINISHED) {
-				rv[1] = "transmission_finished";
+				data[1] = new OtpErlangAtom("transmission_finished");
 			} else if (e == RadioEvent.RECEPTION_STARTED) {
-				rv[1] = "reception_started";
+				data[1] = new OtpErlangAtom("reception_started");
 			} else if (e == RadioEvent.RECEPTION_INTERFERED) {
-				rv[1] = "reception_interfered";
+				data[1] = new OtpErlangAtom("reception_interfered");
 			} else if (e == RadioEvent.RECEPTION_FINISHED) {
-				rv[1] = "reception_finished";
+				data[1] = new OtpErlangAtom("reception_finished");
 			} else if (e == RadioEvent.PACKET_TRANSMITTED) {
-				rv[1] = "packet_transmitted";
+				data[1] = new OtpErlangAtom("packet_transmitted");
 			} else if (e == RadioEvent.CUSTOM_DATA_TRANSMITTED) {
-				rv[1] = "custom_data_transmitted";
+				data[1] = new OtpErlangAtom("custom_data_transmitted");
 			} else if (e == RadioEvent.UNKNOWN){
-				rv[1] = "unknown";
+				data[1] = new OtpErlangAtom("unknown");
 			} else {
-				rv[1] = "undef";
+				data[1] = new OtpErlangAtom("undef");
 			}
-			LinkedList<String[]> tmp = events.get(id); 
-			tmp.add(rv);
-			events.put(id, tmp);
+			state = new OtpErlangTuple(data);
 		} else {
-			LinkedList<String[]> tmp = events.get(id);
-			String[] rv = new String[2];
-			rv[0] = "err";
-			rv[1] = "internal";
-			tmp.add(rv);
-			events.put(id, tmp);
+			state = PacketAnalyzer.make_opt("err", new OtpErlangAtom("internal"));
 		}
+		OtpErlangObject[] item_data = {
+				new OtpErlangLong(simulation.getSimulationTime()),
+				state};
+		LinkedList<OtpErlangObject> tmp = events.get(id);
+		tmp.add(new OtpErlangTuple(item_data));
+		events.replace(id, tmp);
 	}
 }

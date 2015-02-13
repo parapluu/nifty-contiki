@@ -704,11 +704,11 @@ duty_cycle(Events, SimTime) ->
 on_time([], Acc, off, _) -> Acc;
 on_time([], Acc, Start, End) ->
     Acc + End - Start;
-on_time([{radio,["on",Time]}|T], Acc, off, E) -> 
-    on_time(T, Acc, erlang:list_to_integer(Time), E);
-on_time([{radio,["off", _]}|T], Acc, off, E) -> 
+on_time([{Time,{radio, on}}|T], Acc, off, E) -> 
+    on_time(T, Acc, Time, E);
+on_time([{_,{radio, off}}|T], Acc, off, E) -> 
     on_time(T, Acc, off, E);
-on_time([{radio,["off", Time]}|T], Acc, Start, E) -> 
-    on_time(T, Acc + erlang:list_to_integer(Time) - Start, off, E);
+on_time([{Time,{radio, off}}|T], Acc, Start, E) -> 
+    on_time(T, Acc + Time - Start, off, E);
 on_time([_|T], Acc, S, E) -> 
     on_time(T, Acc, S, E).

@@ -12,11 +12,11 @@ import java.util.Observable;
 import java.util.Observer;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import org.apache.log4j.Logger;
+// import org.apache.log4j.Logger;
 import org.contikios.cooja.interfaces.SerialPort;
 
 public class SerialObserver implements Observer {
-	private static Logger logger = Logger.getLogger(MessageHandler.class);
+	// private static Logger logger = Logger.getLogger(MessageHandler.class);
 	private SerialPort serial_port;
 	private String cache;
 	private ConcurrentLinkedQueue<String> messages;

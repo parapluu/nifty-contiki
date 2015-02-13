@@ -55,7 +55,7 @@ public class MessageHandler extends Thread {
 
 	private ConcurrentHashMap<Integer, Observer> motes_observer;
 
-	private ConcurrentHashMap<Integer, LinkedList<String[]>> motes_hw_events;
+	private ConcurrentHashMap<Integer, LinkedList<OtpErlangObject>> motes_hw_events;
 	private ConcurrentHashMap<Integer, Observer> motes_hw_observer;
 
 	private String wait_msg;
@@ -83,7 +83,7 @@ public class MessageHandler extends Thread {
 		this.conn = conn;
 		this.simulation = simulation;
 		this.motes_observer = new ConcurrentHashMap<Integer, Observer>();
-		this.motes_hw_events = new ConcurrentHashMap<Integer, LinkedList<String[]>>();
+		this.motes_hw_events = new ConcurrentHashMap<Integer, LinkedList<OtpErlangObject>>();
 		this.motes_hw_observer = new ConcurrentHashMap<Integer, Observer>();
 		this.wait_msg = null;
 		this.wait_lock = new ReentrantLock();
@@ -200,24 +200,10 @@ public class MessageHandler extends Thread {
 			OtpErlangTuple args = ((OtpErlangTuple) msg.elementAt(2));
 			id = ((OtpErlangLong) args.elementAt(0)).intValue();
 			if (motes_hw_events.containsKey(id)) {
-				LinkedList<String[]> empty = new LinkedList<String[]>();
-				LinkedList<String[]> l = motes_hw_events.replace(id, empty);
-				OtpErlangObject[] elements = new OtpErlangObject[l.size()];
-				for (int i = 0; i < l.size(); i++) {
-					String[] data = l.get(i);
-					OtpErlangAtom key = new OtpErlangAtom(data[0]);
-					OtpErlangObject[] value_elements = new OtpErlangObject[data.length - 1];
-					for (int j = 1; j < data.length; j++) {
-						value_elements[j - 1] = (OtpErlangObject) (new OtpErlangList(
-								data[j]));
-					}
-					OtpErlangList val = new OtpErlangList(value_elements);
-					OtpErlangObject[] element = new OtpErlangObject[2];
-					element[0] = key;
-					element[1] = val;
-					elements[i] = (OtpErlangObject) (new OtpErlangTuple(element));
-				}
-				sendResponsWithTime(sender, new OtpErlangList(elements));
+				LinkedList<OtpErlangObject> empty = new LinkedList<OtpErlangObject>();
+				LinkedList<OtpErlangObject> l = motes_hw_events.replace(id, empty);
+				OtpErlangObject[] retval = l.toArray(new OtpErlangObject[l.size()]);
+				sendResponsWithTime(sender, new OtpErlangList(retval));
 			} else {
 				this.conn.send(sender, new OtpErlangAtom("not_listened_on"));
 			}
@@ -245,7 +231,7 @@ public class MessageHandler extends Thread {
 					radio.addObserver(obs);
 				}
 				motes_hw_observer.put(id, obs);
-				motes_hw_events.put(id, new LinkedList<String[]>());
+				motes_hw_events.put(id, new LinkedList<OtpErlangObject>());
 				sendResponsWithTime(sender, new OtpErlangAtom("ok"));
 			} else {
 				sendResponsWithTime(sender, new OtpErlangAtom(
@@ -693,11 +679,10 @@ public class MessageHandler extends Thread {
 					OtpErlangTuple link = (OtpErlangTuple) o;
 					try {
 						int src = ((OtpErlangLong)((OtpErlangTuple)link.elementAt(0)).elementAt(0)).intValue();
-						int dest = ((OtpErlangLong)((OtpErlangTuple)link.elementAt(0)).elementAt(0)).intValue();
+						int dest = ((OtpErlangLong)((OtpErlangTuple)link.elementAt(0)).elementAt(1)).intValue();
 						DirectedGraphMedium.Edge edge = new DirectedGraphMedium.Edge(
 								simulation.getMoteWithID(src).getInterfaces().getRadio(),
 								new DGRMDestinationRadio(simulation.getMoteWithID(dest).getInterfaces().getRadio()));
-						medium.addEdge(edge);
 						OtpErlangList opts = (OtpErlangList)link.elementAt(1);
 						for (OtpErlangObject _opt : opts.elements()) {
 							OtpErlangTuple option = (OtpErlangTuple)_opt;
@@ -721,6 +706,7 @@ public class MessageHandler extends Thread {
 						sendResponsWithTime(sender, new OtpErlangAtom("bad_src_id"));
 					}
 				}
+				sendResponsWithTime(sender, new OtpErlangAtom("ok"));
 			} else{
 				/* fallback */
 				sendResponsWithTime(sender, new OtpErlangAtom(

@@ -8,8 +8,6 @@ import org.apache.log4j.Logger;
 
 import org.contikios.cooja.util.StringUtils;
 
-import se.uu.it.parapluu.cooja_node.analyzers.PacketAnalyzer.Packet;
-
 import com.ericsson.otp.erlang.OtpErlangAtom;
 import com.ericsson.otp.erlang.OtpErlangInt;
 import com.ericsson.otp.erlang.OtpErlangList;
@@ -33,8 +31,6 @@ public class IEEE802154Analyzer extends PacketAnalyzer {
 	public static final int ACKFRAME = 0x02;
 	public static final int CMDFRAME = 0x03;
 
-	// private static final byte[] BROADCAST_ADDR = {(byte)0xff, (byte)0xff};
-	private static final String[] typeS = { "-", "D", "A", "C" };
 	private static final String[] typeVerbose = { "BEACON", "DATA", "ACK",
 			"CMD" };
 	private static final String[] addrModeNames = { "None", "Reserved",
