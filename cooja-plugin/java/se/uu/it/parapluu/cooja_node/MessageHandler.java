@@ -151,6 +151,25 @@ public class MessageHandler extends Thread {
 		}
 	}
 
+	private void handle_mote_new_id(OtpErlangPid sender, OtpErlangTuple msg)
+		throws IOException{
+		int id_old, id_new;
+		try {
+			OtpErlangTuple args = ((OtpErlangTuple) msg.elementAt(2));
+			id_old = ((OtpErlangLong) args.elementAt(0)).intValue();
+			id_new = ((OtpErlangLong) args.elementAt(1)).intValue();
+			try {
+				Mote m = simulation.getMoteWithID(id_old);
+				m.getInterfaces().getMoteID().setMoteID(id_new);
+				sendResponsWithTime(sender, new OtpErlangAtom("ok"));
+			} catch (Exception e) {
+				sendResponsWithTime(sender, new OtpErlangAtom("fail"));
+			}
+		} catch (OtpErlangRangeException e) {
+			sendResponsWithTime(sender, new OtpErlangAtom("badid"));
+		}
+	}
+	
 	private void handle_mote_del(OtpErlangPid sender, OtpErlangTuple msg)
 			throws IOException {
 		int id;
@@ -206,6 +225,66 @@ public class MessageHandler extends Thread {
 				sendResponsWithTime(sender, new OtpErlangList(retval));
 			} else {
 				this.conn.send(sender, new OtpErlangAtom("not_listened_on"));
+			}
+		} catch (OtpErlangRangeException e) {
+			sendResponsWithTime(sender, new OtpErlangAtom("badid"));
+		}
+	}
+
+	private void handle_mote_set_clock(OtpErlangPid sender, OtpErlangTuple msg) 
+			throws IOException {
+		int id;
+		try {
+			OtpErlangTuple args = ((OtpErlangTuple) msg.elementAt(2));
+			id = ((OtpErlangLong) args.elementAt(0)).intValue();
+			try {
+				OtpErlangObject[] opts = ((OtpErlangList) args.elementAt(1)).elements();
+				for (OtpErlangObject opt : opts) {
+					OtpErlangTuple option = (OtpErlangTuple)opt;
+					Mote m = simulation.getMoteWithID(id);
+					switch (((OtpErlangAtom)option.elementAt(0)).toString()) {
+					case "time": {
+						long time = ((OtpErlangLong)option.elementAt(1)).longValue();
+						m.getInterfaces().getClock().setTime(time);
+						break;
+					}
+					case "drift": {
+						long drift = ((OtpErlangLong)option.elementAt(1)).longValue();
+						m.getInterfaces().getClock().setDrift(drift);
+						break;
+					}
+					default:
+						break;
+					}
+				}
+				sendResponsWithTime(sender, new OtpErlangAtom("ok"));
+			} catch (Exception e) {
+				e.printStackTrace();
+				sendResponsWithTime(sender, new OtpErlangAtom("fail"));
+			}
+		} catch (OtpErlangRangeException e) {
+			e.printStackTrace();
+			sendResponsWithTime(sender, new OtpErlangAtom("badid"));
+		}		
+	}
+
+	private void handle_mote_get_clock(OtpErlangPid sender, OtpErlangTuple msg)
+			throws IOException {
+		int id;
+		try {
+			OtpErlangTuple args = ((OtpErlangTuple) msg.elementAt(2));
+			id = ((OtpErlangLong) args.elementAt(0)).intValue();
+			try {
+				Mote m = simulation.getMoteWithID(id);
+				long time = m.getInterfaces().getClock().getTime();
+				long drift = m.getInterfaces().getClock().getDrift();
+				OtpErlangObject[] clock_info = {
+							PacketAnalyzer.make_opt("time", new OtpErlangLong(time)),
+							PacketAnalyzer.make_opt("drift", new OtpErlangLong(drift))
+				};
+				sendResponsWithTime(sender, new OtpErlangTuple(clock_info));
+			} catch (Exception e) {
+				sendResponsWithTime(sender, new OtpErlangAtom("fail"));
 			}
 		} catch (OtpErlangRangeException e) {
 			sendResponsWithTime(sender, new OtpErlangAtom("badid"));
@@ -869,6 +948,9 @@ public class MessageHandler extends Thread {
 			case "mote_add":
 				handle_mote_add(sender, msg);
 				break;
+			case "mote_new_id":
+				handle_mote_new_id(sender, msg);
+				break;
 			case "mote_del":
 				handle_mote_del(sender, msg);
 				break;
@@ -877,6 +959,12 @@ public class MessageHandler extends Thread {
 				break;
 			case "mote_set_pos":
 				handle_mote_set_pos(sender, msg);
+				break;
+			case "mote_get_clock":
+				handle_mote_get_clock(sender, msg);
+				break;
+			case "mote_set_clock":
+				handle_mote_set_clock(sender, msg);
 				break;
 			case "mote_write":
 				handle_mote_write(sender, msg);
@@ -923,13 +1011,14 @@ public class MessageHandler extends Thread {
 				break;
 			}
 			}
-		} catch (Exception e) {
+		} catch (IOException e) {
 			try {
 				sendResponsWithTime(sender, new OtpErlangAtom("error"));
 			} catch (IOException e1) {
 				logger.fatal(e1.getMessage());
 				System.exit(1);
 			}
+			e.printStackTrace();
 			logger.fatal(e.getMessage());
 			System.exit(1);
 		}

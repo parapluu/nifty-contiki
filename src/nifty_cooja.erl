@@ -37,9 +37,12 @@
 	 %% motes
 	 mote_types/1,
 	 mote_add/2,
+	 mote_new_id/3,
 	 mote_del/2,
 	 mote_get_pos/2,
 	 mote_set_pos/3,
+	 mote_get_clock/2,
+	 mote_set_clock/3,
 	 motes/1,
 	 mote_write/3,
 	 mote_listen/2,
@@ -395,6 +398,10 @@ mote_add(Handler, Type) ->
     send_msg(Handler, {self(), mote_add, {Type}}),
     receive_answer(Handler).
 
+mote_new_id(Handler, OldId, NewId) ->
+    send_msg(Handler, {self(), mote_new_id, {OldId, NewId}}),
+    receive_answer(Handler).
+
 mote_del(Handler, Id) ->
     send_msg(Handler, {self(), mote_del, {Id}}),
     receive_answer(Handler).
@@ -406,6 +413,14 @@ mote_get_pos(Handler, Id) ->
 mote_set_pos(Handler, Id, Pos) ->
     {X, Y, Z} = Pos,
     send_msg(Handler, {self(), mote_set_pos, {Id, X, Y, Z}}),
+    receive_answer(Handler).
+
+mote_get_clock(Handler, Id) ->
+    send_msg(Handler, {self(), mote_get_clock, {Id}}),
+    receive_answer(Handler).
+
+mote_set_clock(Handler, Id, ClockOptions) ->    
+    send_msg(Handler, {self(), mote_set_clock, {Id, ClockOptions}}),
     receive_answer(Handler).
 
 mote_write(Handler, Mote, Data) ->
@@ -484,18 +499,18 @@ radio_no_dublicates([], Acc) ->
     lists:reverse(Acc);
 radio_no_dublicates([M|T], []) ->
     radio_no_dublicates(T, [M]);
-radio_no_dublicates([M={S1, D1, C1}|T], Acc = [{S2, D2, C2}|AccTail]) ->
-    case C1=:=C2 andalso S1=:=S2 of
+radio_no_dublicates([M={Src1, Dst1, Ch1, Cnt1}|T], Acc = [{Src2, Dst2, Ch2, Cnt2}|AccTail]) ->
+    case Cnt1=:=Cnt2 andalso Src1=:=Src2 andalso Ch1=:=Ch2 of
 	true ->
-	    NewDest = lists:usort(D1++D2),
-	    radio_no_dublicates(T, [{S1, NewDest, C1}|AccTail]);
+	    NewDst = lists:usort(Dst1++Dst2),
+	    radio_no_dublicates(T, [{Src1, NewDst, Ch1, Cnt1}|AccTail]);
 	false ->
 	    radio_no_dublicates(T, [M|Acc])
     end.
 
 radio_no_airshots(Msg) ->
-    lists:filter(fun ({_, D, _}) ->
-			  D=/=[] end, Msg).
+    lists:filter(fun ({_, D, _, _}) ->
+			 D=/=[] end, Msg).
 
 next_event(Handler, Mote) ->
     next_event(Handler, Mote, handler_timeout(Handler)).

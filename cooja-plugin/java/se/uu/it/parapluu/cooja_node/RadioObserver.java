@@ -116,10 +116,13 @@ public class RadioObserver implements Observer {
 			analysis.add(new OtpErlangTuple(tpl_payload));
 		}
 
-		OtpErlangObject[] msg = new OtpErlangObject[3];
+		OtpErlangObject[] msg = new OtpErlangObject[4];
 
+		
+		
 		OtpErlangInt source = new OtpErlangInt(conn.getSource().getMote()
 				.getID());
+		OtpErlangInt channel = new OtpErlangInt(conn.getSource().getChannel());
 		Radio[] dest_radios = conn.getDestinations();
 		OtpErlangObject[] destination = new OtpErlangObject[dest_radios.length];
 		for (int i = 0; i < dest_radios.length; i++) {
@@ -128,13 +131,14 @@ public class RadioObserver implements Observer {
 
 		msg[0] = source;
 		msg[1] = new OtpErlangList(destination);
+		msg[2] = channel;
 
 		OtpErlangObject decoded_packet[] = new OtpErlangObject[analysis.size()];
 		int i = 0;
 		for (OtpErlangObject e : analysis) {
 			decoded_packet[i++] = e;
 		}
-		msg[2] = new OtpErlangList(decoded_packet);
+		msg[3] = new OtpErlangList(decoded_packet);
 
 		return new OtpErlangTuple(msg);
 	}
