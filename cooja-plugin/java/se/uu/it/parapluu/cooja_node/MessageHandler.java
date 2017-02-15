@@ -169,7 +169,7 @@ public class MessageHandler extends Thread {
 			sendResponsWithTime(sender, new OtpErlangAtom("badid"));
 		}
 	}
-	
+
 	private void handle_mote_del(OtpErlangPid sender, OtpErlangTuple msg)
 			throws IOException {
 		int id;
@@ -231,7 +231,7 @@ public class MessageHandler extends Thread {
 		}
 	}
 
-	private void handle_mote_set_clock(OtpErlangPid sender, OtpErlangTuple msg) 
+	private void handle_mote_set_clock(OtpErlangPid sender, OtpErlangTuple msg)
 			throws IOException {
 		int id;
 		try {
@@ -265,7 +265,7 @@ public class MessageHandler extends Thread {
 		} catch (OtpErlangRangeException e) {
 			e.printStackTrace();
 			sendResponsWithTime(sender, new OtpErlangAtom("badid"));
-		}		
+		}
 	}
 
 	private void handle_mote_get_clock(OtpErlangPid sender, OtpErlangTuple msg)
@@ -395,7 +395,7 @@ public class MessageHandler extends Thread {
 		try {
 			/* unpack message */
 			id = ((OtpErlangLong) args.elementAt(0)).intValue();
-			String varname = ((OtpErlangString)(args.elementAt(1))).stringValue(); 
+			String varname = ((OtpErlangString)(args.elementAt(1))).stringValue();
 			Mote mote = simulation.getMoteWithID(id);
 			/* get memory */
 			VarMemory mem = new VarMemory(mote.getMemory());
@@ -410,14 +410,14 @@ public class MessageHandler extends Thread {
 				retval[2] = name;
 				sendResponsWithTime(sender, new OtpErlangTuple(retval));
 			} else {
-				sendResponsWithTime(sender, new OtpErlangAtom("badname"));	
+				sendResponsWithTime(sender, new OtpErlangAtom("badname"));
 			}
 		} catch (OtpErlangRangeException e) {
 			sendResponsWithTime(sender, new OtpErlangAtom("badid"));
 		}
 	}
 
-	private void handle_mote_mem_vars(OtpErlangPid sender, OtpErlangTuple msg) 
+	private void handle_mote_mem_vars(OtpErlangPid sender, OtpErlangTuple msg)
 			throws IOException{
 		int id;
 		OtpErlangTuple args = ((OtpErlangTuple) msg.elementAt(2));
@@ -427,7 +427,7 @@ public class MessageHandler extends Thread {
 			Mote mote = simulation.getMoteWithID(id);
 			/* get memory */
 			VarMemory mem = new VarMemory(mote.getMemory());
-			
+
 			Set<String> varnames = mem.getVariableNames();
 			OtpErlangObject retval[] = new OtpErlangObject[varnames.size()];
 			int i=0;
@@ -628,7 +628,7 @@ public class MessageHandler extends Thread {
 			DirectedGraphMedium medium = (DirectedGraphMedium) simulation.getRadioMedium();
 			LinkedList<OtpErlangObject> links = new LinkedList<OtpErlangObject>();
 			DirectedGraphMedium.Edge edges[] = medium.getEdges();
-			
+
 			for (DirectedGraphMedium.Edge e : edges) {
 				DGRMDestinationRadio dest = e.superDest;
 				OtpErlangObject[] edge = {
@@ -673,7 +673,7 @@ public class MessageHandler extends Thread {
 				radio_messages = new LinkedList<OtpErlangObject>();
 				radio_observer = new RadioObserver(simulation, radio_messages,
 						rm, analyzer);
-				rm.addRadioMediumObserver(radio_observer);
+				rm.addRadioTransmissionObserver(radio_observer);
 				sendResponsWithTime(sender, new OtpErlangAtom("ok"));
 			} else {
 				sendResponsWithTime(sender, new OtpErlangAtom(
@@ -799,7 +799,7 @@ public class MessageHandler extends Thread {
 			sendResponsWithTime(sender, new OtpErlangAtom("not_listened_on"));
 		} else {
 			RadioMedium rm = simulation.getRadioMedium();
-			rm.deleteRadioMediumObserver(radio_observer);
+			rm.deleteRadioTransmissionObserver(radio_observer);
 			radio_observer = null;
 			radio_messages = null;
 			sendResponsWithTime(sender, new OtpErlangAtom("ok"));
